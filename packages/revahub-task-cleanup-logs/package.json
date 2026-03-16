@@ -1,0 +1,31 @@
+{
+  "name": "revahub-task-cleanup-logs",
+  "version": "0.1.0",
+  "description": "Native task for RevaHub — deletes log entries older than a configured retention period",
+  "type": "module",
+  "license": "Apache-2.0",
+  "keywords": [
+    "revahub"
+  ],
+  "revahub": {
+    "type": "task",
+    "label": "Cleanup Logs",
+    "description": "Deletes log entries older than a configured age",
+    "options": [
+      {
+        "key": "retentionDays",
+        "type": "number",
+        "label": "Retain logs for (days)",
+        "required": true
+      }
+    ],
+    "timeout": {
+      "default": 60000
+    }
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  }
+}

@@ -84,20 +84,27 @@ export default tseslint.config(
       'vue/block-order': ['error', { order: ['script', 'template', 'style'] }],
       'vue/brace-style': ['error', '1tbs', { allowSingleLine: false }],
       'vue/first-attribute-linebreak': ['error', { singleline: 'beside', multiline: 'below' }],
+      'vue/html-indent': ['error', 2, { attribute: 1, baseIndent: 1, closeBracket: 0, alignAttributesVertically: true }],
       'vue/max-attributes-per-line': ['error', { singleline: { max: 1 }, multiline: { max: 1 } }],
       'vue/multi-word-component-names': 'off',
       'vue/no-multiple-template-root': 'off',
       'vue/object-curly-spacing': ['error', 'always'],
-      'vue/padding-line-between-blocks': 'error', 'vue/component-name-in-template-casing': ['error', 'kebab-case', { registeredComponentsOnly: false, ignores: [] }],
+      'vue/padding-line-between-blocks': 'error',
+      'vue/component-name-in-template-casing': ['error', 'kebab-case', { registeredComponentsOnly: false, ignores: [] }],
       'vue/script-indent': ['error', 2, { baseIndent: 1, switchCase: 1, ignores: [] }],
 
       '@stylistic/indent': 'off'
     }
   },
   {
-    files: ['functions/bin/**/*.js'],
-    rules: {
-      'no-console': 'off'
+    files: ['**/*.vue'],
+    languageOptions: {
+      globals: {
+        ...globals.browser
+      },
+      parserOptions: {
+        parser: tseslint.parser
+      }
     }
   }
 );

@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "packages/revahub"
+    },
+    {
+      "path": "packages/revahub-module-database"
+    },
+    {
+      "path": "packages/revahub-module-logger"
+    },
+    {
+      "path": "packages/revahub-task-cleanup-logs"
+    }
+  ]
+}

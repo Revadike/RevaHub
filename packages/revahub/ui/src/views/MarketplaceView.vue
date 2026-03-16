@@ -1,0 +1,203 @@
+<script setup lang="ts">
+  import { ref, onMounted, computed } from 'vue';
+  import { apiClient } from '../api';
+
+  interface Package {
+    name: string;
+    version: string;
+    description: string;
+  }
+
+  interface InstalledItem {
+    name: string;
+    version: string;
+    label: string;
+    native: boolean;
+  }
+
+  const searchQuery = ref('');
+  const results = ref<Package[]>([]);
+  const installedModules = ref<InstalledItem[]>([]);
+  const installedTasks = ref<InstalledItem[]>([]);
+  const loading = ref(false);
+  const actionInProgress = ref<string | null>(null);
+
+  const installedNames = computed(() => {
+    const names = new Set<string>();
+    for (const m of installedModules.value) names.add(m.name);
+    for (const t of installedTasks.value) names.add(t.name);
+    return names;
+  });
+
+  const installedVersions = computed(() => {
+    const map = new Map<string, string>();
+    for (const m of installedModules.value) map.set(m.name, m.version);
+    for (const t of installedTasks.value) map.set(t.name, t.version);
+    return map;
+  });
+
+  onMounted(async () => {
+    await Promise.all([search(), loadInstalled()]);
+  });
+
+  async function loadInstalled() {
+    try {
+      const [mods, tsks] = await Promise.all([
+        apiClient.getModules(),
+        apiClient.getTasks()
+      ]);
+      installedModules.value = mods as InstalledItem[];
+      installedTasks.value = tsks as InstalledItem[];
+    } catch {
+      // ignore
+    }
+  }
+
+  async function search() {
+    loading.value = true;
+    try {
+      results.value = await apiClient.searchPackages(searchQuery.value || undefined) as Package[];
+    } catch (err) {
+      console.error('Failed to search packages:', err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function installPackage(name: string) {
+    actionInProgress.value = name;
+    try {
+      await apiClient.installPackage(name);
+      await loadInstalled();
+    } catch (err) {
+      console.error('Failed to install package:', err);
+    } finally {
+      actionInProgress.value = null;
+    }
+  }
+
+  async function uninstallPackage(name: string) {
+    if (!confirm(`Uninstall ${name}?`)) return;
+
+    actionInProgress.value = name;
+    try {
+      await apiClient.uninstallPackage(name);
+      await loadInstalled();
+    } catch (err) {
+      console.error('Failed to uninstall package:', err);
+    } finally {
+      actionInProgress.value = null;
+    }
+  }
+
+  async function updatePackage(name: string) {
+    actionInProgress.value = name;
+    try {
+      await apiClient.updatePackage(name);
+      await loadInstalled();
+    } catch (err) {
+      console.error('Failed to update package:', err);
+    } finally {
+      actionInProgress.value = null;
+    }
+  }
+
+  function isInstalled(name: string): boolean {
+    return installedNames.value.has(name);
+  }
+
+  function hasUpdate(pkg: Package): boolean {
+    const current = installedVersions.value.get(pkg.name);
+    return !!current && current !== pkg.version;
+  }
+
+  function packageType(name: string): string {
+    if (name.startsWith('revahub-module-')) return 'Module';
+    if (name.startsWith('revahub-task-')) return 'Task';
+
+    return 'Unknown';
+  }
+</script>
+
+<template>
+  <div>
+    <h1 class="text-h4 mb-4">Marketplace</h1>
+
+    <v-text-field
+      v-model="searchQuery"
+      append-inner-icon="mdi-magnify"
+      clearable
+      label="Search packages"
+      variant="outlined"
+      @click:append-inner="search"
+      @keyup.enter="search"
+    />
+
+    <v-progress-linear
+      v-if="loading"
+      indeterminate />
+
+    <v-row v-else>
+      <v-col
+        v-for="pkg in results"
+        :key="pkg.name"
+        cols="12"
+        md="4">
+        <v-card>
+          <v-card-title>{{ pkg.name }}</v-card-title>
+          <v-card-subtitle>
+            <v-chip
+              class="mr-2"
+              size="small">{{ packageType(pkg.name) }}</v-chip>
+            v{{ pkg.version }}
+            <template v-if="isInstalled(pkg.name)">
+              <v-chip
+                class="ml-1"
+                color="success"
+                size="small">installed</v-chip>
+              <span
+                v-if="installedVersions.get(pkg.name) !== pkg.version"
+                class="ml-1 text-caption text-warning">
+                (current: v{{ installedVersions.get(pkg.name) }})
+              </span>
+            </template>
+          </v-card-subtitle>
+          <v-card-text>{{ pkg.description }}</v-card-text>
+          <v-card-actions>
+            <v-btn
+              v-if="!isInstalled(pkg.name)"
+              color="primary"
+              :loading="actionInProgress === pkg.name"
+              @click="installPackage(pkg.name)"
+            >
+              Install
+            </v-btn>
+            <v-btn
+              v-if="hasUpdate(pkg)"
+              color="info"
+              :loading="actionInProgress === pkg.name"
+              @click="updatePackage(pkg.name)"
+            >
+              Update
+            </v-btn>
+            <v-btn
+              v-if="isInstalled(pkg.name)"
+              color="error"
+              :loading="actionInProgress === pkg.name"
+              variant="text"
+              @click="uninstallPackage(pkg.name)"
+            >
+              Uninstall
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <p
+      v-if="!loading && results.length === 0"
+      class="text-grey mt-4">
+      No packages found
+    </p>
+  </div>
+</template>

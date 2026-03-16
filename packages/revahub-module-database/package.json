@@ -1,0 +1,28 @@
+{
+  "name": "revahub-module-database",
+  "version": "0.1.0",
+  "description": "Native database module for RevaHub — provides SQL query access to the platform database",
+  "type": "module",
+  "license": "Apache-2.0",
+  "keywords": [
+    "revahub"
+  ],
+  "revahub": {
+    "type": "module",
+    "label": "Database",
+    "description": "Provides SQL query access to the platform database",
+    "options": []
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.0",
+    "pg": "^8.14.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.11"
+  }
+}

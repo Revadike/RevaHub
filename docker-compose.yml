@@ -1,0 +1,34 @@
+services:
+  revahub:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://revahub:revahub@postgres:5432/revahub
+    volumes:
+      - revahub_data:/data/revahub
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: revahub
+      POSTGRES_PASSWORD: revahub
+      POSTGRES_DB: revahub
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U revahub"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  revahub_data:
+  postgres_data:
