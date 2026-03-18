@@ -1,33 +1,41 @@
 # RevaHub
 
-A self-hosted, event-driven automation platform with a filesystem-based plugin ecosystem. Written in TypeScript, powered by PGlite, distributed via npm, managed through a web dashboard.
+A self-hosted, event-driven automation platform with a plugin-based module and task ecosystem. Written in TypeScript, distributed via npm, managed through a web dashboard.
 
-## Overview
+## Features
 
-RevaHub is the infrastructure layer for automation. Users install and configure **modules** (persistent service adapters) and **tasks** (automation scripts) as npm packages. Tasks are triggered by module events, cron schedules, webhooks, or manually. Everything is configured and monitored through a built-in web dashboard.
+* **Modules** — Run persistent module instances in their own worker threads.
 
-The platform runs as a single Node.js process with an embedded PGlite database. Module instances run in isolated worker threads. All packages are standard npm packages discovered from the filesystem and managed via npm.
+* **Tasks** — Define and run short-lived asynchronous automation workflows.
 
-## Key Features
+* **Embedded database** — Persist state and data without requiring external infrastructure.
 
-- **Embedded database** — PGlite (PostgreSQL in WebAssembly) eliminates external database dependencies
-- **Filesystem-based ecosystem** — Packages discovered from `node_modules` and local directories, no metadata in database
-- **Module system** — Persistent service adapters run in isolated worker threads with one or more instances per module
-- **Task system** — Short-lived async automation scripts triggered by events, cron, webhooks, or manually
-- **Event bus** — Module instances emit named events routed to matching task configs
-- **Auto-generated UI forms** — Option definitions in `package.json` drive the configuration UI automatically
-- **Package marketplace** — Browse, install, update, and uninstall modules and tasks directly from the dashboard
-- **Live log streaming** — Instance and task-run logs streamed via WebSocket
-- **Hot-reload support** — Local packages watched with chokidar for instant updates during development
-- **Native packages** — Core functionality provided by built-in revahub-module-* and revahub-task-* packages
+* **Web dashboard** — Configure, manage, and observe the system from a single interface.
 
----
+* **Dynamic UI** — Generate forms dynamically from package configuration schemas.
+
+* **Real-time logging** — Stream logs from modules and task runs for monitoring and debugging.
+
+* **Integrated marketplace** — Discover, install, update, and remove modules and tasks.
+
+* **Modular architecture** — Install and manage modules and tasks as standard npm packages.
+
+* **Event-driven automation** — Trigger tasks from events, schedules, webhooks, or manual execution.
+
+* **Built-in event bus** — Enable communication between modules and tasks through a decoupled messaging layer.
+
+## Prerequisites
+
+- [Node.js 22+](https://nodejs.org/)
 
 ## Quick Start
 
-RevaHub requires **Node.js 22+**. No external database needed!
+```sh
+npm install -g revahub
+revahub
+```
 
-### Installation
+Or without a global install:
 
 ```sh
 npx revahub
@@ -40,9 +48,28 @@ On first run, RevaHub will:
 - Register native packages
 - Start HTTP server on port 3000
 
-Open `http://localhost:3000` to access the dashboard.
+Open http://localhost:3000 to access the dashboard.
 
-### CLI Commands
+## Development
+
+```sh
+git clone https://github.com/Revadike/RevaHub.git
+cd RevaHub
+npm install
+```
+
+## Scripts
+
+| Script             | Description                                        |
+| ------------------ | -------------------------------------------------- |
+| `npm run build`    | Compile all TypeScript packages                    |
+| `npm run build:ui` | Build the Vue SPA into `packages/revahub/dist/ui/` |
+| `npm run dev`      | Watch-mode TypeScript compilation                  |
+| `npm start`        | Run the compiled RevaHub server                    |
+| `npm run lint`     | Lint everything                                    |
+| `npm run lint:fix` | Lint and auto-fix                                  |
+
+## CLI Commands
 
 ```sh
 revahub start                          # Start the server (default command)
@@ -54,52 +81,7 @@ revahub uninstall module <name>        # Uninstall a module
 revahub uninstall task <name>          # Uninstall a task
 ```
 
-### Configuration
-
-- **Server port**: Configurable in the dashboard under **Settings** (requires restart)
-- **Local packages directory**: Optionally configure a custom directory for local development packages
-- **Working directory**: `~/.revahub/` (contains database, packages, and config)
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 22+
-
-### Setup
-
-```sh
-git clone https://github.com/Revadike/RevaHub.git
-cd RevaHub
-npm install
-```
-
-### Build and run
-
-```sh
-npm run build          # Compile all packages
-npm run build:ui       # Build the Vue SPA
-npm start              # Start RevaHub (http://localhost:3000)
-```
-
-### Available scripts
-
-| Script | Description |
-|---|---|
-| `npm run build` | Compile all TypeScript packages |
-| `npm run build:ui` | Build the Vue SPA into `packages/revahub/dist/ui/` |
-| `npm run dev` | Watch-mode TypeScript compilation |
-| `npm start` | Run the compiled RevaHub server |
-| `npm run lint` | Lint everything |
-| `npm run lint:fix` | Lint and auto-fix |
-
----
-
-## Package Development
-
-### Modules
+## Modules
 
 A module is an npm package named `revahub-module-<name>`. It exports a factory function that receives a `ModuleContext` and returns a running instance object.
 
@@ -118,19 +100,19 @@ The `package.json` must include a `"revahub"` block with `type: "module"`, a `la
 Example package.json:
 ```json
 {
-  "name": "revahub-module-steam",
+  "name": "revahub-module-steam-api",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
   "revahub": {
     "type": "module",
-    "label": "Steam",
+    "label": "Steam API",
     "description": "Steam Web API integration",
     "options": [
       {
         "key": "apiKey",
         "label": "API Key",
-        "type": "string",
+        "type": "secret",
         "required": true
       }
     ]
@@ -138,7 +120,7 @@ Example package.json:
 }
 ```
 
-### Tasks
+## Tasks
 
 A task is an npm package named `revahub-task-<name>`. It exports a single async function:
 
@@ -151,23 +133,14 @@ export default async (ctx: TaskContext) => {
 };
 ```
 
-### Triggers
+## Triggers
 
-| Trigger | Description |
-|---|---|
-| `cron` | Fired on a cron schedule |
-| `event` | Fired when a module instance emits a named event |
-| `manual` | User clicks **Run** in the dashboard |
-| `webhook` | `POST /webhooks/:taskId` |
-
-### Package Installation Methods
-
-| Method | Source Type | Use Case |
-|---|---|---|
-| `npm install` in `~/.revahub/` | `npm` | Standard npm packages |
-| Git URL in package.json | `git` | Private repos or unreleased versions |
-| Local directory symlink | `local` | Development and testing |
-| Dashboard import form | `local` | One-off custom packages |
+| Trigger   | Description                                      |
+| --------- | ------------------------------------------------ |
+| `cron`    | Fired on a cron schedule                         |
+| `event`   | Fired when a module instance emits a named event |
+| `manual`  | User clicks **Run** in the dashboard             |
+| `webhook` | `POST /webhooks/:taskId`                         |
 
 ## Architecture
 
@@ -178,8 +151,7 @@ revahub (single Node.js process)
 │
 ├── Package Scanner (filesystem-based discovery)
 │     ├── ~/.revahub/node_modules/ (npm/git packages)
-│     ├── ~/.revahub/packages/ (default local packages)
-│     └── Custom local directory (optional)
+│     └── ~/.revahub/packages/ (symlinked local packages)
 │
 ├── Package Watcher (chokidar hot-reload)
 │
@@ -200,13 +172,12 @@ revahub (single Node.js process)
 
 The following packages ship pre-installed and are automatically detected from `revahub`'s own dependencies. They cannot be uninstalled:
 
-| Package | Type | Description |
-|---|---|---|
-| `revahub-module-database` | Module | PGlite database access; auto-injected as `ctx.instances.database` with dual-mode (shared or isolated schema) |
-| `revahub-module-logger` | Module | Structured logging; auto-injected as `ctx.instances.logger` |
-| `revahub-task-cleanup-logs` | Task | Deletes log entries older than a configured age |
+| Package                     | Type   | Description                                                                                                  |
+| --------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| `revahub-module-database`   | Module | PGlite database access; auto-injected as `ctx.instances.database` with dual-mode (shared or isolated schema) |
+| `revahub-module-logger`     | Module | Structured logging; auto-injected as `ctx.instances.logger`                                                  |
+| `revahub-task-cleanup-logs` | Task   | Deletes log entries older than a configured age                                                              |
 
-To add new native packages, simply add them as dependencies in `packages/revahub/package.json` and they'll be automatically detected at runtime.
 
 ## Monorepo Structure
 
@@ -222,20 +193,18 @@ packages/
   revahub-task-cleanup-logs/  # Native cleanup task
 ```
 
----
-
 ## Tech Stack
 
-| Concern | Choice |
-|---|---|
-| Runtime | Node.js LTS |
-| Language | TypeScript |
-| HTTP server | Fastify |
-| Frontend | Vue 3 + Vuetify + Vite |
-| Database | PostgreSQL |
-| ORM | Drizzle ORM |
-| Module isolation | `node:worker_threads` |
-| Cron | `node-cron` |
+| Concern          | Choice                 |
+| ---------------- | ---------------------- |
+| Runtime          | Node.js LTS            |
+| Language         | TypeScript             |
+| HTTP server      | Fastify                |
+| Frontend         | Vue 3 + Vuetify + Vite |
+| Database         | PostgreSQL             |
+| ORM              | Drizzle ORM            |
+| Module isolation | `node:worker_threads`  |
+| Cron             | `node-cron`            |
 
 ## License
 
