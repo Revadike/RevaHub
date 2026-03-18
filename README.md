@@ -31,13 +31,6 @@ A self-hosted, event-driven automation platform with a plugin-based module and t
 ## Quick Start
 
 ```sh
-npm install -g revahub
-revahub
-```
-
-Or without a global install:
-
-```sh
 npx revahub
 ```
 
