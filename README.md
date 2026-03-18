@@ -194,7 +194,7 @@ packages/
 | Language         | TypeScript             |
 | HTTP server      | Fastify                |
 | Frontend         | Vue 3 + Vuetify + Vite |
-| Database         | PostgreSQL             |
+| Database         | PGlite                 |
 | ORM              | Drizzle ORM            |
 | Module isolation | `node:worker_threads`  |
 | Cron             | `node-cron`            |
