@@ -29,6 +29,7 @@ export interface ServerDeps {
 /**
  * Creates and configures the Fastify HTTP server with all API routes,
  * WebSocket support, and static file serving for the Vue SPA.
+ *
  * @param deps - Core service dependencies
  * @returns Configured Fastify server instance
  */

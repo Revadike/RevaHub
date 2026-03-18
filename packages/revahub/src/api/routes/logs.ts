@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 
 /**
  * Registers log viewing API routes.
+ *
  * @param app - Fastify instance scoped to /api
  */
 export function registerLogRoutes(app: FastifyInstance) {

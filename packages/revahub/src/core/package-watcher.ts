@@ -12,6 +12,7 @@ export interface PackageWatcherOptions {
 }
 
 /**
+ * Watches for package changes in the working directory and local packages dir.
  */
 export class PackageWatcher {
   private watcher: FSWatcher | null = null;
@@ -29,6 +30,7 @@ export class PackageWatcher {
   }
 
   /**
+   * Starts watching for package changes.
    */
   start() {
     if (this.watcher) return;
@@ -56,6 +58,7 @@ export class PackageWatcher {
   }
 
   /**
+   * Stops watching for package changes.
    */
   stop() {
     if (this.watcher) {
@@ -65,6 +68,7 @@ export class PackageWatcher {
   }
 
   /**
+   * Handles a new package.json being added.
    */
   private async handleAdd(filePath: string) {
     const packageDir = dirname(filePath);
@@ -80,6 +84,7 @@ export class PackageWatcher {
   }
 
   /**
+   * Handles a package.json being changed.
    */
   private async handleChange(filePath: string) {
     const packageDir = dirname(filePath);
@@ -96,6 +101,7 @@ export class PackageWatcher {
   }
 
   /**
+   * Handles a package.json being deleted.
    */
   private async handleUnlink(filePath: string) {
     const packageDir = dirname(filePath);

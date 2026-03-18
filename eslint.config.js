@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import stylistic from '@stylistic/eslint-plugin';
 import globals from 'globals';
 import importPlugin from 'eslint-plugin-import';
+import tsdoc from 'eslint-plugin-tsdoc';
 import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
 import vuetify from 'eslint-plugin-vuetify';
@@ -17,7 +18,8 @@ export default tseslint.config(
   {
     plugins: {
       'import': importPlugin,
-      '@stylistic': stylistic
+      '@stylistic': stylistic,
+      tsdoc
     },
     languageOptions: {
       ecmaVersion: 2022,
@@ -36,6 +38,8 @@ export default tseslint.config(
       'prefer-arrow-callback': ['error', { allowNamedFunctions: false, allowUnboundThis: true }],
       'prefer-const': ['error', { destructuring: 'all' }],
       'prefer-template': 'error',
+
+      'tsdoc/syntax': 'error',
 
       '@stylistic/array-bracket-newline': ['error', 'consistent'],
       '@stylistic/array-bracket-spacing': ['error', 'never'],

@@ -5,9 +5,10 @@ import { scanPackage, registerPackage, deregisterPackage } from '../core/package
 import { getNativePackages } from '../utils/native-packages.js';
 
 /**
+ * Runs an npm command with array arguments to prevent shell injection.
+ *
  * @param args - npm command arguments
  * @param cwd - Working directory
- * @returns
  */
 function npmRun(args: string[], cwd: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -21,6 +22,8 @@ function npmRun(args: string[], cwd: string): Promise<void> {
 }
 
 /**
+ * Resolves a short package name to its full revahub package name.
+ *
  * @param type - Package type
  * @param name - Short package name
  * @returns Full package name with revahub prefix
@@ -39,10 +42,11 @@ function resolvePackageName(type: 'module' | 'task', name: string): string {
 }
 
 /**
+ * Creates a new module or task package scaffolding.
+ *
  * @param type - Package type to create
  * @param shortName - Short package name
  * @param targetDir - Directory where package will be created
- * @returns
  */
 export async function createPackage(
   type: 'module' | 'task',
@@ -215,18 +219,18 @@ function toPascalCase(str: string): string {
     .join('');
 }
 
-/**
- */
+/** Options for install/uninstall commands. */
 export interface PackageCommandOptions {
   version?: string;
   workingDir: string;
 }
 
 /**
+ * Installs a package from npm.
+ *
  * @param packageName - Full package name to install
  * @param options - Installation options
  * @param nativePackages - Set of native package names
- * @returns
  */
 export async function installPackage(
   packageName: string,
@@ -268,10 +272,11 @@ export async function installPackage(
 }
 
 /**
+ * Uninstalls a package.
+ *
  * @param packageName - Full package name to uninstall
  * @param options - Uninstallation options
  * @param nativePackages - Set of native package names
- * @returns
  */
 export async function uninstallPackage(
   packageName: string,
@@ -297,10 +302,11 @@ export async function uninstallPackage(
 }
 
 /**
+ * CLI wrapper for installPackage that takes type + name format.
+ *
  * @param type - Package type
  * @param name - Short package name
  * @param workingDir - Working directory
- * @returns
  */
 export async function cliInstallPackage(
   type: 'module' | 'task',
@@ -334,10 +340,11 @@ export async function cliInstallPackage(
 }
 
 /**
+ * CLI wrapper for uninstallPackage that takes type + name format.
+ *
  * @param type - Package type
  * @param name - Short package name
  * @param workingDir - Working directory
- * @returns
  */
 export async function cliUninstallPackage(
   type: 'module' | 'task',

@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { getDatabase, getPGlite } from '../db/index.js';
 import { moduleInstances } from '../db/schema.js';
 import { CoreEventBus } from './event-bus.js';
-import { getPackage, resolvePackagePath } from './package-scanner.js';
+import { getPackage } from './package-scanner.js';
 import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from 'revahub-types';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -60,8 +60,8 @@ export class ModuleManager {
 
   /**
    * Starts a single module instance by its ID.
+   *
    * @param instanceId - The unique instance identifier
-   * @returns
    */
   async startInstance(instanceId: string) {
     const db = getDatabase();
@@ -163,6 +163,7 @@ export class ModuleManager {
 
   /**
    * Stops a running instance gracefully.
+   *
    * @param instanceId - The instance to stop
    */
   async stopInstance(instanceId: string) {
@@ -196,6 +197,7 @@ export class ModuleManager {
 
   /**
    * Calls a method on a running instance via RPC.
+   *
    * @param instanceId - Target instance
    * @param method - Method name to invoke
    * @param args - Arguments to pass
@@ -218,6 +220,7 @@ export class ModuleManager {
 
   /**
    * Creates an RPC proxy object for an instance, usable in task/module contexts.
+   *
    * @param instanceId - Target instance to proxy
    */
   createProxy(instanceId: string): InstanceProxy {
@@ -230,6 +233,7 @@ export class ModuleManager {
 
   /**
    * Returns the current status of an instance.
+   *
    * @param instanceId - The instance to check
    */
   getStatus(instanceId: string): InstanceStatus | undefined {
@@ -238,6 +242,7 @@ export class ModuleManager {
 
   /**
    * Returns the public method names available on an instance.
+   *
    * @param instanceId - The instance to query
    */
   getMethods(instanceId: string): string[] {
@@ -309,11 +314,12 @@ export class ModuleManager {
   }
 
   /**
+   * Handles a PGlite query request from a worker.
+   *
    * @param sourceInstanceId - The instance requesting the query
    * @param text - SQL query text
    * @param params - Query parameters
    * @param correlationId - Correlation ID for response
-   * @returns
    */
   private async handlePGliteQuery(
     sourceInstanceId: string,
@@ -344,12 +350,13 @@ export class ModuleManager {
   }
 
   /**
+   * Forwards an RPC call from one instance to another.
+   *
    * @param sourceInstanceId - The instance initiating the call
    * @param targetInstanceId - The instance to call
    * @param method - Method name to invoke
    * @param args - Method arguments
    * @param correlationId - Correlation ID for response
-   * @returns
    */
   private async forwardRpc(
     sourceInstanceId: string,

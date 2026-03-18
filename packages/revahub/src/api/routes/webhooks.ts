@@ -11,6 +11,7 @@ interface TaskOptions {
 /**
  * Registers webhook routes for task configs that have `exposeWebhook` enabled.
  * Routes are registered at POST /webhooks/:taskConfigId.
+ *
  * @param app - Root Fastify instance
  * @param deps - Core service dependencies
  */

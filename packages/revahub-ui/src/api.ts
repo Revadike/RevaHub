@@ -12,6 +12,7 @@ const BASE_URL = '/api';
 
 /**
  * Typed fetch wrapper for the RevaHub API.
+ *
  * @param path - API endpoint path (relative to /api)
  * @param options - Standard fetch options
  * @returns Parsed JSON response

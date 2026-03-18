@@ -37,6 +37,7 @@ class Database implements IDatabaseInstance {
 
   /**
    * Executes a parameterized SQL query.
+   *
    * @param text - SQL query with $1, $2, ... placeholders
    * @param params - Parameter values
    * @returns Query result rows
@@ -58,6 +59,7 @@ class Database implements IDatabaseInstance {
 
   /**
    * Executes a query and returns the first row, or null.
+   *
    * @param text - SQL query
    * @param params - Parameter values
    */
@@ -79,6 +81,7 @@ class Database implements IDatabaseInstance {
 
 /**
  * Factory function for the database module.
+ *
  * @param ctx - Module context provided by the RevaHub core
  * @returns A Database instance
  */

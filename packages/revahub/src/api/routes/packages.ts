@@ -6,9 +6,10 @@ import { getNativePackages } from '../../utils/native-packages.js';
 import { join } from 'node:path';
 
 /**
+ * Registers package management routes.
+ *
  * @param app - Fastify instance scoped to /api
  * @param deps - Core service dependencies
- * @returns
  */
 export function registerPackageRoutes(app: FastifyInstance, deps: ServerDeps) {
   // Get all packages in registry

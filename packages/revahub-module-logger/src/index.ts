@@ -17,6 +17,7 @@ class Logger {
 
   /**
    * Writes a log entry to the database.
+   *
    * @param level - Log severity level
    * @param message - Log message
    * @param data - Optional structured context data
@@ -54,6 +55,7 @@ class Logger {
 
   /**
    * Logs a debug-level message.
+   *
    * @param message - Log message
    * @param data - Optional structured data
    * @param meta - Optional association metadata
@@ -64,6 +66,7 @@ class Logger {
 
   /**
    * Logs an info-level message.
+   *
    * @param message - Log message
    * @param data - Optional structured data
    * @param meta - Optional association metadata
@@ -74,6 +77,7 @@ class Logger {
 
   /**
    * Logs a warn-level message.
+   *
    * @param message - Log message
    * @param data - Optional structured data
    * @param meta - Optional association metadata
@@ -84,6 +88,7 @@ class Logger {
 
   /**
    * Logs an error-level message.
+   *
    * @param message - Log message
    * @param data - Optional structured data
    * @param meta - Optional association metadata
@@ -95,6 +100,7 @@ class Logger {
 
 /**
  * Factory function for the logger module.
+ *
  * @param ctx - Module context provided by the RevaHub core
  * @returns A Logger instance
  */

@@ -19,6 +19,7 @@ import type {
 
 /**
  * Generates a prefixed unique ID.
+ *
  * @param prefix - Short prefix string
  */
 function generateId(prefix: string): string {
@@ -79,6 +80,7 @@ export class TaskRunner {
 
   /**
    * Registers a cron job for a task config.
+   *
    * @param taskConfigId - The task config to schedule
    * @param cronExpression - Standard cron expression
    */
@@ -106,6 +108,7 @@ export class TaskRunner {
 
   /**
    * Routes an event to all task configs that match the instance + event name.
+   *
    * @param payload - The event payload to match against task triggers
    */
   private async handleEvent(payload: EventPayload) {
@@ -127,6 +130,7 @@ export class TaskRunner {
 
   /**
    * Invokes a task config run.
+   *
    * @param taskConfigId - The task config to execute
    * @param triggerType - How the task was triggered
    * @param event - Optional event payload for event triggers

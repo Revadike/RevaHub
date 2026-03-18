@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { getPGlite } from './index.js';
 
 /**
+ * Splits SQL by semicolons, preserving DO $$ blocks as single statements.
+ *
  * @param sql - SQL text to split
  */
 function splitSQL(sql: string): string[] {
@@ -37,6 +39,7 @@ function splitSQL(sql: string): string[] {
 
 /**
  * Runs all pending Drizzle migrations against the database.
+ *
  * @param migrationsFolder - Path to the folder containing migration SQL files
  */
 export async function runMigrations(migrationsFolder: string) {

@@ -8,6 +8,7 @@ import type { FastifyInstance } from 'fastify';
 
 /**
  * Registers all task and task config API routes.
+ *
  * @param app - Fastify instance scoped to /api
  * @param deps - Core service dependencies
  */

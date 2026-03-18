@@ -7,6 +7,8 @@ let pglite: PGlite | null = null;
 
 /**
  * Initializes the database connection pool and returns the Drizzle ORM instance.
+ *
+ * @param dataDir - Directory path for PGlite data storage
  */
 export async function initDatabase(dataDir: string) {
   pglite = new PGlite(dataDir);
@@ -15,8 +17,9 @@ export async function initDatabase(dataDir: string) {
 }
 
 /**
- *  If the database has not been initialized yet.
- * @returns
+ * Returns the active Drizzle ORM database instance.
+ *
+ * @throws Error if the database has not been initialized yet
  */
 export function getDatabase() {
   if (!db) {
@@ -27,15 +30,14 @@ export function getDatabase() {
 }
 
 /**
- * @returns
+ * Returns the underlying PGlite instance for raw queries or shutdown.
  */
 export function getPGlite() {
   return pglite;
 }
 
-/*
- * @returns
- **
+/**
+ * Closes the PGlite database connection.
  */
 export async function closeDatabase() {
   if (pglite) {

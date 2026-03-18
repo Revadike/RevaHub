@@ -19,6 +19,7 @@
     "@types/node": "^22.15.0",
     "eslint": "^9.28.0",
     "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-tsdoc": "^0.5.2",
     "eslint-plugin-vue": "^10.1.0",
     "eslint-plugin-vuetify": "^2.5.1",
     "globals": "^16.1.0",

@@ -17,6 +17,7 @@ interface TaskContext {
 /**
  * Deletes log entries older than the configured retention period.
  * Uses the auto-injected `database` instance to execute the cleanup query.
+ *
  * @param ctx - Task context with options and native instances
  * @returns Summary of deleted log count
  */

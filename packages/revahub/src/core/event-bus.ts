@@ -14,6 +14,7 @@ export class CoreEventBus {
 
   /**
    * Emits a structured event payload on the bus.
+   *
    * @param payload - The full event payload from a module instance
    */
   emit(payload: EventPayload) {
@@ -22,6 +23,7 @@ export class CoreEventBus {
 
   /**
    * Subscribes a listener to all events on the bus.
+   *
    * @param listener - Callback receiving each EventPayload
    */
   on(listener: (payload: EventPayload) => void) {
@@ -30,6 +32,7 @@ export class CoreEventBus {
 
   /**
    * Removes a previously registered event listener.
+   *
    * @param listener - The listener to remove
    */
   off(listener: (payload: EventPayload) => void) {

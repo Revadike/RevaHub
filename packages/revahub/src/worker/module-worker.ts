@@ -28,6 +28,7 @@ const destroyCallbacks: Array<() => Promise<void> | void> = [];
 /**
  * Creates an RPC proxy for calling methods on another module instance
  * via the main thread.
+ *
  * @param targetInstanceId - Instance ID to proxy calls to
  */
 function createInstanceProxy(targetInstanceId: string): Record<string, (...args: unknown[]) => Promise<unknown>> {
@@ -63,6 +64,7 @@ function createInstanceProxy(targetInstanceId: string): Record<string, (...args:
 }
 
 /**
+ * Creates a proxy for executing PGlite database queries via the main thread.
  */
 function createPGliteProxy() {
   return {
@@ -116,8 +118,10 @@ for (const [key, instanceId] of Object.entries(data.connectedInstances)) {
 let instance: Record<string, unknown> | null = null;
 
 /**
+ * Handles an RPC call from the main thread by invoking the method on the
+ * module instance.
+ *
  * @param msg - The call message with method name and arguments
- * @returns
  */
 async function handleCall(msg: WorkerCallMessage) {
   try {

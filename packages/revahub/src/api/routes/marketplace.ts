@@ -26,9 +26,10 @@ function npmRun(args: string[], cwd: string): Promise<void> {
 }
 
 /**
+ * Runs git clone to download a repository.
+ *
  * @param url - Git URL to clone
  * @param dest - Destination path
- * @returns
  */
 function gitClone(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -46,8 +47,9 @@ function gitClone(url: string, dest: string): Promise<void> {
 }
 
 /**
+ * Runs git pull in a repository.
+ *
  * @param cwd - Working directory
- * @returns
  */
 function gitPull(cwd: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -65,9 +67,10 @@ function gitPull(cwd: string): Promise<void> {
 }
 
 /**
+ * Registers marketplace API routes for package discovery, installation, and updates.
+ *
  * @param app - Fastify instance scoped to /api
  * @param deps - Core service dependencies
- * @returns
  */
 export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps) {
   const packagesDir = join(deps.workingDir, 'packages');

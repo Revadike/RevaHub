@@ -25,27 +25,27 @@ export interface PackageRegistryEntry {
   timeout?: { default?: number };
 }
 
-/**
- */
+/** In-memory registry of all discovered packages. */
 const packageRegistry = new Map<string, PackageRegistryEntry>();
 
 /**
- * @returns Package registry map
+ * Returns the full package registry map.
  */
 export function getPackageRegistry(): Map<string, PackageRegistryEntry> {
   return packageRegistry;
 }
 
 /**
+ * Gets a package entry by name from the registry.
+ *
  * @param name - Package name
- * @returns Package entry or undefined
  */
 export function getPackage(name: string): PackageRegistryEntry | undefined {
   return packageRegistry.get(name);
 }
 
 /**
- * @returns
+ * Clears all entries from the package registry.
  */
 export function clearPackageRegistry() {
   packageRegistry.clear();
@@ -53,6 +53,7 @@ export function clearPackageRegistry() {
 
 /**
  * Reads and parses a revahub package's metadata from its package.json.
+ *
  * @param packageDir - Absolute path to the package directory
  * @returns Parsed package metadata or null if invalid
  */
@@ -95,6 +96,7 @@ export async function scanPackage(packageDir: string): Promise<ScannedPackage | 
  * Resolves a package name to its installed directory path.
  * Checks the working directory first, then falls back to the process's
  * own node_modules (supports workspace-linked packages in dev).
+ *
  * @param packageName - npm package name
  * @param workingDir - The working directory where packages are installed
  * @returns Path to the package directory
@@ -128,6 +130,8 @@ export async function resolvePackagePath(packageName: string, workingDir: string
 }
 
 /**
+ * Scans a directory for revahub packages.
+ *
  * @param dir - Directory to scan (e.g., node_modules or packages folder)
  * @param source - Package source type
  * @param nativePackages - Set of native package names
@@ -187,11 +191,12 @@ async function scanDirectory(
 }
 
 /**
+ * Creates a package registry entry from scanned package data.
+ *
  * @param scanned - Scanned package data
  * @param path - Package path
  * @param source - Package source type
  * @param nativePackages - Set of native package names
- * @returns Registry entry
  */
 function createRegistryEntry(
   scanned: ScannedPackage,
@@ -223,8 +228,9 @@ function createRegistryEntry(
 }
 
 /**
+ * Reads package.json to find git-installed dependencies.
+ *
  * @param workingDir - Working directory
- * @returns Set of git-installed package names
  */
 async function getGitPackages(workingDir: string): Promise<Set<string>> {
   const gitPackages = new Set<string>();
@@ -262,8 +268,9 @@ export interface ScanOptions {
 }
 
 /**
+ * Scans all package sources and populates the registry.
+ *
  * @param options - Scan configuration
- * @returns Package registry map
  */
 export async function scanAllPackages(options: ScanOptions): Promise<Map<string, PackageRegistryEntry>> {
   const { workingDir, localPackagesDir, nativePackages } = options;
@@ -300,10 +307,11 @@ export async function scanAllPackages(options: ScanOptions): Promise<Map<string,
 }
 
 /**
+ * Registers a single package in the registry.
+ *
  * @param packagePath - Path to the package directory
  * @param source - Package source type
  * @param nativePackages - Set of native package names
- * @returns Registry entry or null if invalid
  */
 export async function registerPackage(
   packagePath: string,
@@ -321,8 +329,9 @@ export async function registerPackage(
 }
 
 /**
+ * Removes a package from the registry by name.
+ *
  * @param name - Package name
- * @returns True if package was removed
  */
 export function deregisterPackage(name: string): boolean {
   return packageRegistry.delete(name);

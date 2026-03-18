@@ -20,14 +20,17 @@ import { getNativePackages, getNativeModules } from './utils/native-packages.js'
 
 /**
  * Resolves the working directory for RevaHub data and packages.
+ *
  * @param envOverride - Optional override from environment variable
+ * @returns Path to working directory
  */
-function getWorkingDir(envOverride?: string): string {
+export function getWorkingDir(envOverride?: string): string {
   return envOverride ?? join(homedir(), '.revahub');
 }
 
 /**
  * Ensures the working directory exists and has a package.json.
+ *
  * @param dir - Path to the working directory
  */
 async function ensureWorkingDir(dir: string) {
@@ -48,9 +51,11 @@ async function ensureWorkingDir(dir: string) {
 }
 
 /**
- * @template T
+ * Retrieves a setting value from the database.
+ *
+ * @typeParam T - Expected type of the setting value
  * @param key - Setting key
- * @returns Setting value
+ * @returns Setting value or undefined if not found
  */
 async function getSetting<T>(key: string): Promise<T | undefined> {
   const db = getDatabase();
@@ -60,9 +65,7 @@ async function getSetting<T>(key: string): Promise<T | undefined> {
 }
 
 /**
- * Registers a native module in the database and creates its default instance.
- * @param moduleName - npm package name of the native module
- * @param workingDir - Workspace root
+ * Ensures default settings exist in the database.
  */
 async function ensureDefaultSettings() {
   const db = getDatabase();
@@ -73,8 +76,9 @@ async function ensureDefaultSettings() {
 }
 
 /**
+ * Ensures default instances exist for all native modules.
+ *
  * @param nativeModules - Array of native module package names
- * @returns
  */
 async function ensureNativeModuleInstances(nativeModules: string[]) {
   const db = getDatabase();
@@ -104,7 +108,7 @@ async function ensureNativeModuleInstances(nativeModules: string[]) {
 }
 
 /**
- * @returns
+ * Marks module instances and tasks as missing if their packages are not found.
  */
 async function flagMissingPackages() {
   const db = getDatabase();
@@ -128,7 +132,7 @@ async function flagMissingPackages() {
 }
 
 /**
- * @returns
+ * Starts the RevaHub server and all its subsystems.
  */
 export async function start() {
   const workingDir = getWorkingDir();

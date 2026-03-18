@@ -8,6 +8,7 @@ const POLL_INTERVAL_MS = 1000;
 /**
  * Registers WebSocket routes for live log streaming.
  * Clients connect and optionally subscribe to logs filtered by instance or task run.
+ *
  * @param app - Root Fastify instance (not under /api prefix)
  */
 export function registerLogStreamRoutes(app: FastifyInstance) {

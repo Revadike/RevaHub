@@ -8,7 +8,7 @@ const __dirname = dirname(__filename);
 let cachedNativePackages: Set<string> | null = null;
 
 /**
- * @returns Set of native package names
+ * Returns the set of native revahub packages bundled with this installation.
  */
 export function getNativePackages(): Set<string> {
   if (cachedNativePackages) {
@@ -37,7 +37,7 @@ export function getNativePackages(): Set<string> {
 }
 
 /**
- * @returns Array of native module package names
+ * Returns the native module package names.
  */
 export function getNativeModules(): string[] {
   const packages = getNativePackages();
@@ -45,7 +45,7 @@ export function getNativeModules(): string[] {
 }
 
 /**
- * @returns Array of native task package names
+ * Returns the native task package names.
  */
 export function getNativeTasks(): string[] {
   const packages = getNativePackages();
@@ -53,8 +53,9 @@ export function getNativeTasks(): string[] {
 }
 
 /**
+ * Checks if a package is a native package.
+ *
  * @param name - Package name to check
- * @returns True if native
  */
 export function isNativePackage(name: string): boolean {
   return getNativePackages().has(name);

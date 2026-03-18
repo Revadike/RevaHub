@@ -8,9 +8,9 @@ import type { FastifyInstance } from 'fastify';
 
 /**
  * Registers all module and module instance API routes.
+ *
  * @param app - Fastify instance scoped to /api
  * @param deps - Core service dependencies
- * @returns
  */
 export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
   // List all modules (from package registry)
