@@ -10,9 +10,6 @@
     "build:ui": "npm run build:ui -w packages/revahub",
     "dev": "npm run dev -w packages/revahub",
     "start": "node packages/revahub/dist/cli.js",
-    "db:up": "docker compose -f docker-compose.dev.yml up -d",
-    "db:down": "docker compose -f docker-compose.dev.yml down",
-    "db:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },

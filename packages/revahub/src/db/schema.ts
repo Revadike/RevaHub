@@ -1,23 +1,10 @@
 import { boolean, index, jsonb, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
-// ── Modules ──
-
-export const modules = pgTable('modules', {
-  name: text('name').primaryKey(),
-  version: text('version').notNull(),
-  label: text('label').notNull(),
-  native: boolean('native').notNull()
-    .default(false),
-  installedAt: timestamp('installed_at', { withTimezone: true }).notNull()
-    .defaultNow()
-});
-
 // ── Module Instances ──
 
 export const moduleInstances = pgTable('module_instances', {
   id: text('id').primaryKey(),
-  moduleName: text('module_name').notNull()
-    .references(() => modules.name),
+  moduleName: text('module_name').notNull(),
   label: text('label').notNull(),
   options: jsonb('options').notNull()
     .default({}),
@@ -31,24 +18,11 @@ export const moduleInstances = pgTable('module_instances', {
     .defaultNow()
 });
 
-// ── Tasks ──
+// ── Tasks (formerly task_configs) ──
 
 export const tasks = pgTable('tasks', {
-  name: text('name').primaryKey(),
-  version: text('version').notNull(),
-  label: text('label').notNull(),
-  native: boolean('native').notNull()
-    .default(false),
-  installedAt: timestamp('installed_at', { withTimezone: true }).notNull()
-    .defaultNow()
-});
-
-// ── Task Configs ──
-
-export const taskConfigs = pgTable('task_configs', {
   id: text('id').primaryKey(),
-  taskName: text('task_name').notNull()
-    .references(() => tasks.name),
+  taskName: text('task_name').notNull(),
   label: text('label').notNull(),
   options: jsonb('options').notNull()
     .default({}),
@@ -62,8 +36,8 @@ export const taskConfigs = pgTable('task_configs', {
 
 export const taskRuns = pgTable('task_runs', {
   id: text('id').primaryKey(),
-  taskConfigId: text('task_config_id').notNull()
-    .references(() => taskConfigs.id),
+  taskId: text('task_id').notNull()
+    .references(() => tasks.id),
   triggerType: text('trigger_type').notNull(),
   triggerPayload: jsonb('trigger_payload'),
   status: text('status').notNull()

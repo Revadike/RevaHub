@@ -2,11 +2,11 @@ import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { eq } from 'drizzle-orm';
-import { getDatabase } from '../db/index.js';
-import { moduleInstances, modules } from '../db/schema.js';
+import { getDatabase, getPGlite } from '../db/index.js';
+import { moduleInstances } from '../db/schema.js';
 import { CoreEventBus } from './event-bus.js';
-import { resolvePackagePath, scanPackage } from './package-scanner.js';
-import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from '../types.js';
+import { getPackage, resolvePackagePath } from './package-scanner.js';
+import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from 'revahub-types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,13 +44,24 @@ export class ModuleManager {
       .where(eq(moduleInstances.enabled, true));
 
     for (const row of rows) {
-      await this.startInstance(row.id);
+      // Skip if status is 'missing' (package not found)
+      if (row.status === 'missing') {
+        console.warn(`[ModuleManager] Skipping instance "${row.id}" — package "${row.moduleName}" missing`);
+        continue;
+      }
+
+      try {
+        await this.startInstance(row.id);
+      } catch (err) {
+        console.error(`[ModuleManager] Failed to start instance "${row.id}":`, err);
+      }
     }
   }
 
   /**
    * Starts a single module instance by its ID.
    * @param instanceId - The unique instance identifier
+   * @returns
    */
   async startInstance(instanceId: string) {
     const db = getDatabase();
@@ -60,16 +71,16 @@ export class ModuleManager {
       throw new Error(`Instance "${instanceId}" not found`);
     }
 
-    const [mod] = await db.select().from(modules)
-      .where(eq(modules.name, row.moduleName));
-    if (!mod) {
-      throw new Error(`Module "${row.moduleName}" not found`);
+    // Check if module exists in registry
+    const pkg = getPackage(row.moduleName);
+    if (!pkg) {
+      await db.update(moduleInstances).set({ status: 'missing' })
+        .where(eq(moduleInstances.id, instanceId));
+      throw new Error(`Module "${row.moduleName}" not found in registry`);
     }
 
     // Resolve module entry point
-    const moduleDir = await resolvePackagePath(row.moduleName, this.workingDir);
-    const scanned = await scanPackage(moduleDir);
-    const modulePath = join(moduleDir, scanned?.main ?? 'dist/index.js');
+    const modulePath = join(pkg.path, pkg.main);
 
     const managed: ManagedInstance = {
       id: instanceId,
@@ -243,7 +254,7 @@ export class ModuleManager {
 
   private handleWorkerMessage(
     instanceId: string,
-    msg: WorkerOutboundMessage & { type: string; targetInstanceId?: string; method?: string; args?: unknown[]; correlationId?: string }
+    msg: WorkerOutboundMessage & { type: string; targetInstanceId?: string; method?: string; args?: unknown[]; correlationId?: string; text?: string; params?: unknown[] }
   ) {
     const managed = this.instances.get(instanceId);
     if (!managed) {
@@ -279,6 +290,14 @@ export class ModuleManager {
 
         break;
 
+      // PGlite query from worker (used by native database module)
+      case 'pglite-query':
+        if (msg.correlationId && msg.text !== undefined) {
+          void this.handlePGliteQuery(instanceId, msg.text, msg.params, msg.correlationId);
+        }
+
+        break;
+
       // Forwarded RPC from worker to another instance
       default:
         if (msg.type === 'rpc' && msg.targetInstanceId && msg.method && msg.correlationId) {
@@ -290,7 +309,47 @@ export class ModuleManager {
   }
 
   /**
-   * Forwards an RPC call from one worker to another and sends the result back.
+   * @param sourceInstanceId - The instance requesting the query
+   * @param text - SQL query text
+   * @param params - Query parameters
+   * @param correlationId - Correlation ID for response
+   * @returns
+   */
+  private async handlePGliteQuery(
+    sourceInstanceId: string,
+    text: string,
+    params: unknown[] | undefined,
+    correlationId: string
+  ) {
+    const source = this.instances.get(sourceInstanceId);
+    if (!source?.worker) {
+      return;
+    }
+
+    try {
+      const pglite = getPGlite();
+      if (!pglite) {
+        throw new Error('PGlite database not initialized');
+      }
+
+      const result = await pglite.query(text, params);
+      source.worker.postMessage({ type: 'pglite-result', correlationId, result });
+    } catch (err) {
+      source.worker.postMessage({
+        type: 'pglite-result',
+        correlationId,
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+  }
+
+  /**
+   * @param sourceInstanceId - The instance initiating the call
+   * @param targetInstanceId - The instance to call
+   * @param method - Method name to invoke
+   * @param args - Method arguments
+   * @param correlationId - Correlation ID for response
+   * @returns
    */
   private async forwardRpc(
     sourceInstanceId: string,

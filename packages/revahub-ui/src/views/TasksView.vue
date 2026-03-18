@@ -2,6 +2,7 @@
   import { ref, onMounted, watch } from 'vue';
   import { apiClient } from '../api';
   import OptionFields from '../components/OptionFields.vue';
+  import type { TaskRow, TaskRunRow } from 'revahub-types';
 
   interface OptionDef {
     key: string;
@@ -20,42 +21,28 @@
     label: string;
   }
 
-  interface Task {
+  interface TaskPackage {
     name: string;
     label: string;
     version: string;
+    source: string;
     native: boolean;
   }
 
-  interface TaskConfig {
-    id: string;
-    taskName: string;
-    label: string;
-    enabled: boolean;
-    options: Record<string, unknown>;
-  }
-
-  interface TaskRun {
-    id: string;
-    taskConfigId: string;
-    status: string;
-    startedAt: string;
-  }
-
-  const tasks = ref<Task[]>([]);
-  const taskConfigs = ref<TaskConfig[]>([]);
+  const taskPackages = ref<TaskPackage[]>([]);
+  const tasks = ref<TaskRow[]>([]);
   const instances = ref<Instance[]>([]);
-  const latestRuns = ref<Map<string, TaskRun>>(new Map());
+  const latestRuns = ref<Map<string, TaskRunRow>>(new Map());
   const loading = ref(true);
   const showCreateDialog = ref(false);
   const showEditDialog = ref(false);
   const optionDefs = ref<OptionDef[]>([]);
 
-  const newConfig = ref<{ taskName: string; label: string; options: Record<string, unknown> }>({
+  const newTask = ref<{ taskName: string; label: string; options: Record<string, unknown> }>({
     taskName: '', label: '', options: {}
   });
 
-  const editConfig = ref<{ id: string; label: string; options: Record<string, unknown> }>({
+  const editTask = ref<{ id: string; label: string; options: Record<string, unknown> }>({
     id: '', label: '', options: {}
   });
 
@@ -63,13 +50,13 @@
     await loadData();
   });
 
-  watch(() => newConfig.value.taskName, async (taskName) => {
+  watch(() => newTask.value.taskName, async (taskName) => {
     if (!taskName) {
       optionDefs.value = []; return;
     }
 
     try {
-      optionDefs.value = await apiClient.getTaskOptions(taskName) as OptionDef[];
+      optionDefs.value = await apiClient.getTaskPackageOptions(taskName) as OptionDef[];
     } catch {
       optionDefs.value = [];
     }
@@ -78,23 +65,22 @@
   async function loadData() {
     loading.value = true;
     try {
-      const [taskData, configData, instData, runData] = await Promise.all([
+      const [packageData, taskData, instData, runData] = await Promise.all([
+        apiClient.getTaskPackages(),
         apiClient.getTasks(),
-        apiClient.getTaskConfigs(),
         apiClient.getInstances(),
         apiClient.getTaskRuns({ limit: 200 })
       ]);
 
-      tasks.value = taskData as Task[];
-      taskConfigs.value = configData as TaskConfig[];
+      taskPackages.value = packageData as unknown as TaskPackage[];
+      tasks.value = taskData;
       instances.value = instData as Instance[];
 
-      // Build latest run per config
-      const runs = runData as TaskRun[];
-      const map = new Map<string, TaskRun>();
-      for (const run of runs) {
-        if (!map.has(run.taskConfigId)) {
-          map.set(run.taskConfigId, run);
+      // Build latest run per task
+      const map = new Map<string, TaskRunRow>();
+      for (const run of runData) {
+        if (!map.has(run.taskId)) {
+          map.set(run.taskId, run);
         }
       }
 
@@ -106,22 +92,22 @@
     }
   }
 
-  async function createConfig() {
+  async function createTask() {
     try {
-      await apiClient.createTaskConfig(newConfig.value);
+      await apiClient.createTask(newTask.value);
       showCreateDialog.value = false;
-      newConfig.value = { taskName: '', label: '', options: {} };
+      newTask.value = { taskName: '', label: '', options: {} };
       optionDefs.value = [];
       await loadData();
     } catch (err) {
-      console.error('Failed to create task config:', err);
+      console.error('Failed to create task:', err);
     }
   }
 
-  async function openEdit(config: TaskConfig) {
-    editConfig.value = { id: config.id, label: config.label, options: { ...config.options } };
+  async function openEdit(task: TaskRow) {
+    editTask.value = { id: task.id, label: task.label, options: { ...task.options } };
     try {
-      optionDefs.value = await apiClient.getTaskOptions(config.taskName) as OptionDef[];
+      optionDefs.value = await apiClient.getTaskPackageOptions(task.taskName) as OptionDef[];
     } catch {
       optionDefs.value = [];
     }
@@ -131,35 +117,35 @@
 
   async function saveEdit() {
     try {
-      await apiClient.updateTaskConfig(editConfig.value.id, {
-        label: editConfig.value.label,
-        options: editConfig.value.options
+      await apiClient.updateTask(editTask.value.id, {
+        label: editTask.value.label,
+        options: editTask.value.options
       });
       showEditDialog.value = false;
       await loadData();
     } catch (err) {
-      console.error('Failed to update task config:', err);
+      console.error('Failed to update task:', err);
     }
   }
 
-  async function toggleEnabled(config: TaskConfig) {
-    await apiClient.updateTaskConfig(config.id, { enabled: !config.enabled });
+  async function toggleEnabled(task: TaskRow) {
+    await apiClient.updateTask(task.id, { enabled: !task.enabled });
     await loadData();
   }
 
   async function runTask(id: string) {
     try {
-      await apiClient.runTaskConfig(id);
+      await apiClient.runTask(id);
       await loadData();
     } catch (err) {
       console.error('Failed to run task:', err);
     }
   }
 
-  async function deleteConfig(id: string) {
-    if (!confirm('Delete this task config?')) return;
+  async function deleteTask(id: string) {
+    if (!confirm('Delete this task?')) return;
 
-    await apiClient.deleteTaskConfig(id);
+    await apiClient.deleteTask(id);
     await loadData();
   }
 
@@ -172,14 +158,14 @@
     return '—';
   }
 
-  function webhookUrl(config: TaskConfig): string | null {
-    if (!(config.options as Record<string, unknown>).exposeWebhook) return null;
+  function webhookUrl(task: TaskRow): string | null {
+    if (!(task.options as Record<string, unknown>).exposeWebhook) return null;
 
-    return `/webhooks/${config.id}`;
+    return `/webhooks/${task.id}`;
   }
 
-  function lastRunStatus(configId: string): TaskRun | undefined {
-    return latestRuns.value.get(configId);
+  function lastRunStatus(taskId: string): TaskRunRow | undefined {
+    return latestRuns.value.get(taskId);
   }
 
   function statusColor(status: string): string {
@@ -199,7 +185,7 @@
         color="primary"
         prepend-icon="mdi-plus"
         @click="showCreateDialog = true">
-        New Config
+        New Task
       </v-btn>
     </div>
 
@@ -212,7 +198,7 @@
         <thead>
           <tr>
             <th>Label</th>
-            <th>Task</th>
+            <th>Task Package</th>
             <th>Trigger</th>
             <th>Last Run</th>
             <th>Webhook</th>
@@ -222,19 +208,19 @@
         </thead>
         <tbody>
           <tr
-            v-for="config in taskConfigs"
-            :key="config.id">
-            <td>{{ config.label }}</td>
-            <td>{{ config.taskName }}</td>
-            <td class="text-caption">{{ triggerInfo(config.options) }}</td>
+            v-for="task in tasks"
+            :key="task.id">
+            <td>{{ task.label }}</td>
+            <td>{{ task.taskName }}</td>
+            <td class="text-caption">{{ triggerInfo(task.options) }}</td>
             <td>
-              <template v-if="lastRunStatus(config.id)">
+              <template v-if="lastRunStatus(task.id)">
                 <v-chip
-                  :color="statusColor(lastRunStatus(config.id)!.status)"
+                  :color="statusColor(lastRunStatus(task.id)!.status)"
                   size="x-small">
-                  {{ lastRunStatus(config.id)!.status }}
+                  {{ lastRunStatus(task.id)!.status }}
                 </v-chip>
-                <span class="text-caption ml-1">{{ new Date(lastRunStatus(config.id)!.startedAt).toLocaleString() }}</span>
+                <span class="text-caption ml-1">{{ new Date(lastRunStatus(task.id)!.startedAt).toLocaleString() }}</span>
               </template>
               <span
                 v-else
@@ -242,8 +228,8 @@
             </td>
             <td>
               <code
-                v-if="webhookUrl(config)"
-                class="text-caption">{{ webhookUrl(config) }}</code>
+                v-if="webhookUrl(task)"
+                class="text-caption">{{ webhookUrl(task) }}</code>
               <span
                 v-else
                 class="text-grey">—</span>
@@ -253,8 +239,8 @@
                 color="primary"
                 density="compact"
                 hide-details
-                :model-value="config.enabled"
-                @update:model-value="toggleEnabled(config)"
+                :model-value="task.enabled"
+                @update:model-value="toggleEnabled(task)"
               />
             </td>
             <td>
@@ -263,20 +249,20 @@
                 icon="mdi-play"
                 size="small"
                 variant="text"
-                @click="runTask(config.id)"
+                @click="runTask(task.id)"
               />
               <v-btn
                 icon="mdi-pencil"
                 size="small"
                 variant="text"
-                @click="openEdit(config)"
+                @click="openEdit(task)"
               />
               <v-btn
                 color="error"
                 icon="mdi-delete"
                 size="small"
                 variant="text"
-                @click="deleteConfig(config.id)"
+                @click="deleteTask(task.id)"
               />
             </td>
           </tr>
@@ -288,19 +274,19 @@
     <v-dialog
       v-model="showCreateDialog"
       max-width="600">
-      <v-card title="New Task Config">
+      <v-card title="New Task">
         <v-card-text>
           <v-select
-            v-model="newConfig.taskName"
-            :items="tasks.map(t => ({ title: t.label, value: t.name }))"
-            label="Task"
+            v-model="newTask.taskName"
+            :items="taskPackages.map(t => ({ title: t.label, value: t.name }))"
+            label="Task Package"
           />
           <v-text-field
-            v-model="newConfig.label"
+            v-model="newTask.label"
             label="Label" />
           <option-fields
             v-if="optionDefs.length"
-            v-model="newConfig.options"
+            v-model="newTask.options"
             :instances="instances"
             :option-defs="optionDefs"
           />
@@ -310,7 +296,7 @@
           <v-btn @click="showCreateDialog = false">Cancel</v-btn>
           <v-btn
             color="primary"
-            @click="createConfig">Create</v-btn>
+            @click="createTask">Create</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -319,14 +305,14 @@
     <v-dialog
       v-model="showEditDialog"
       max-width="600">
-      <v-card title="Edit Task Config">
+      <v-card title="Edit Task">
         <v-card-text>
           <v-text-field
-            v-model="editConfig.label"
+            v-model="editTask.label"
             label="Label" />
           <option-fields
             v-if="optionDefs.length"
-            v-model="editConfig.options"
+            v-model="editTask.options"
             :instances="instances"
             :option-defs="optionDefs"
           />

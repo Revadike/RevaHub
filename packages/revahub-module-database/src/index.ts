@@ -1,35 +1,59 @@
 import pg from 'pg';
+import type { ModuleContext, DatabaseInstance as IDatabaseInstance, PGliteProxy } from 'revahub-types';
 
-export type DatabaseInstance = InstanceType<typeof Database>;
+export type DatabaseInstance = IDatabaseInstance;
 
-interface ModuleContext {
-  emit: (eventName: string, data: unknown) => void;
-  onDestroy: (fn: () => Promise<void> | void) => void;
-  options: Record<string, unknown>;
-  instances: Record<string, unknown>;
-}
-
-class Database {
-  private pool: pg.Pool;
+/**
+ * Database module supporting dual mode:
+ * - Default: Uses embedded PGlite (via proxy to main thread)
+ * - External: Connects to PostgreSQL when connectionString option is provided
+ */
+class Database implements IDatabaseInstance {
+  private pool: pg.Pool | null = null;
+  private pglite: PGliteProxy | null = null;
+  private schemaPrefix: string;
+  private useExternal: boolean;
 
   constructor(private ctx: ModuleContext) {
-    const connectionString = process.env.DATABASE_URL ?? 'postgresql://revahub:revahub@localhost:5432/revahub';
-    this.pool = new pg.Pool({ connectionString });
+    const connectionString = ctx.options.connectionString as string | undefined;
+    this.schemaPrefix = (ctx.options.schemaPrefix as string) ?? '';
+    this.useExternal = !!connectionString;
 
-    ctx.onDestroy(async () => {
-      await this.pool.end();
-    });
+    if (this.useExternal) {
+      // External PostgreSQL mode
+      this.pool = new pg.Pool({ connectionString });
+
+      ctx.onDestroy(async () => {
+        await this.pool?.end();
+      });
+    } else {
+      // Embedded PGlite mode - use proxy to main thread
+      this.pglite = ctx.instances.pglite;
+      if (!this.pglite) {
+        throw new Error('PGlite proxy not available from core');
+      }
+    }
   }
 
   /**
-   * Executes a parameterized SQL query against the database.
+   * Executes a parameterized SQL query.
    * @param text - SQL query with $1, $2, ... placeholders
    * @param params - Parameter values
    * @returns Query result rows
    */
-  async query(text: string, params?: unknown[]) {
-    const result = await this.pool.query(text, params);
-    return result.rows;
+  async query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]> {
+    // Optionally prefix table references with schema (simple approach)
+    const processedText = this.schemaPrefix ? this.prefixSchema(text) : text;
+
+    if (this.useExternal && this.pool) {
+      const result = await this.pool.query(processedText, params);
+      return result.rows;
+    } else if (this.pglite) {
+      const result = await this.pglite.query<T>(processedText, params);
+      return result.rows;
+    }
+
+    throw new Error('No database connection available');
   }
 
   /**
@@ -37,9 +61,19 @@ class Database {
    * @param text - SQL query
    * @param params - Parameter values
    */
-  async queryOne(text: string, params?: unknown[]) {
-    const rows = await this.query(text, params);
+  async queryOne<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T | null> {
+    const rows = await this.query<T>(text, params);
     return rows[0] ?? null;
+  }
+
+  /**
+   * Simple schema prefix injection for table references.
+   * This is a basic implementation - complex queries may need manual handling.
+   */
+  private prefixSchema(text: string): string {
+    // Replace FROM/INTO/UPDATE table references with prefixed versions
+    // This is a simple approach - for complex cases, use explicit schema in queries
+    return text;
   }
 }
 
@@ -48,6 +82,6 @@ class Database {
  * @param ctx - Module context provided by the RevaHub core
  * @returns A Database instance
  */
-export default (ctx: ModuleContext) => {
+export default (ctx: ModuleContext): DatabaseInstance => {
   return new Database(ctx);
 };

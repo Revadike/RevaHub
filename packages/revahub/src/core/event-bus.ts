@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { EventPayload } from '../types.js';
+import type { EventPayload } from 'revahub-types';
 
 /**
  * Central event bus that routes module events to task triggers.

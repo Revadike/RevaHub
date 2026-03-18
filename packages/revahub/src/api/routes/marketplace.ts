@@ -1,11 +1,10 @@
 import { spawn } from 'node:child_process';
-import { eq } from 'drizzle-orm';
-import { getDatabase } from '../../db/index.js';
-import { modules, tasks } from '../../db/schema.js';
-import { resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
+import { existsSync } from 'node:fs';
+import { join, resolve as resolvePath, basename } from 'node:path';
+import { mkdir, symlink, rm, readdir } from 'node:fs/promises';
+import { getPackage, registerPackage, deregisterPackage, scanPackage } from '../../core/package-scanner.js';
 import type { ServerDeps } from '../server.js';
 import type { FastifyInstance } from 'fastify';
-import type { RevahubMeta } from '../../types.js';
 
 /** Strict validation pattern for npm package names in the revahub namespace. */
 const VALID_PACKAGE_NAME = /^revahub-(module|task)-[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/;
@@ -27,11 +26,52 @@ function npmRun(args: string[], cwd: string): Promise<void> {
 }
 
 /**
- * Registers marketplace API routes for package discovery, installation, and updates.
+ * @param url - Git URL to clone
+ * @param dest - Destination path
+ * @returns
+ */
+function gitClone(url: string, dest: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', ['clone', '--depth', '1', url, dest], { shell: false, stdio: 'pipe' });
+    let stderr = '';
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr || `git exited with code ${code}`));
+    });
+    child.on('error', reject);
+  });
+}
+
+/**
+ * @param cwd - Working directory
+ * @returns
+ */
+function gitPull(cwd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', ['pull'], { cwd, shell: false, stdio: 'pipe' });
+    let stderr = '';
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr || `git exited with code ${code}`));
+    });
+    child.on('error', reject);
+  });
+}
+
+/**
  * @param app - Fastify instance scoped to /api
  * @param deps - Core service dependencies
+ * @returns
  */
 export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps) {
+  const packagesDir = join(deps.workingDir, 'packages');
+
   // Search npm for revahub packages
   app.get<{ Querystring: { q?: string } }>('/marketplace/search', async (req) => {
     const query = req.query.q ?? 'revahub';
@@ -57,7 +97,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
     return results;
   });
 
-  // Install a package
+  // Install a package from npm
   app.post<{ Body: { packageName: string } }>('/marketplace/install', async (req, reply) => {
     const { packageName } = req.body;
 
@@ -67,41 +107,14 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
 
     try {
       await npmRun(['install', packageName], deps.workingDir);
-
-      const packageDir = await resolvePackagePath(packageName, deps.workingDir);
-      const scanned = await scanPackage(packageDir);
-      if (!scanned) {
+      // npm packages are installed to node_modules
+      const packagePath = join(deps.workingDir, 'node_modules', packageName);
+      const entry = await registerPackage(packagePath, 'npm', deps.nativePackages);
+      if (!entry) {
         return reply.code(400).send({ error: 'Package does not contain valid revahub metadata' });
       }
 
-      const db = getDatabase();
-      const meta = scanned.revahub as RevahubMeta;
-
-      if (meta.type === 'module') {
-        await db.insert(modules).values({
-          name: scanned.name,
-          version: scanned.version,
-          label: meta.label,
-          native: false
-        })
-          .onConflictDoUpdate({
-            target: modules.name,
-            set: { version: scanned.version, label: meta.label }
-          });
-      } else if (meta.type === 'task') {
-        await db.insert(tasks).values({
-          name: scanned.name,
-          version: scanned.version,
-          label: meta.label,
-          native: false
-        })
-          .onConflictDoUpdate({
-            target: tasks.name,
-            set: { version: scanned.version, label: meta.label }
-          });
-      }
-
-      return { success: true, name: scanned.name, version: scanned.version };
+      return { success: true, name: entry.name, version: entry.version };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Installation failed' });
     }
@@ -115,32 +128,25 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       return reply.code(400).send({ error: 'Invalid package name' });
     }
 
-    const db = getDatabase();
-
-    // Check if it's native
-    if (packageName.startsWith('revahub-module-')) {
-      const [mod] = await db.select().from(modules)
-        .where(eq(modules.name, packageName));
-      if (mod?.native) {
-        return reply.code(403).send({ error: 'Cannot uninstall native module' });
-      }
-    } else if (packageName.startsWith('revahub-task-')) {
-      const [task] = await db.select().from(tasks)
-        .where(eq(tasks.name, packageName));
-      if (task?.native) {
-        return reply.code(403).send({ error: 'Cannot uninstall native task' });
-      }
+    const pkg = getPackage(packageName);
+    if (pkg?.source === 'native') {
+      return reply.code(403).send({ error: 'Cannot uninstall native package' });
     }
 
     try {
-      await npmRun(['uninstall', packageName], deps.workingDir);
-
-      if (packageName.startsWith('revahub-module-')) {
-        await db.delete(modules).where(eq(modules.name, packageName));
-      } else if (packageName.startsWith('revahub-task-')) {
-        await db.delete(tasks).where(eq(tasks.name, packageName));
+      // Handle based on source
+      if (pkg?.source === 'local' || pkg?.source === 'git') {
+        // Remove from packages directory
+        const pkgDir = join(packagesDir, packageName);
+        if (existsSync(pkgDir)) {
+          await rm(pkgDir, { recursive: true, force: true });
+        }
+      } else {
+        // npm package
+        await npmRun(['uninstall', packageName], deps.workingDir);
       }
 
+      deregisterPackage(packageName);
       return { success: true };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Uninstallation failed' });
@@ -155,27 +161,182 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       return reply.code(400).send({ error: 'Invalid package name' });
     }
 
+    const pkg = getPackage(packageName);
+    if (!pkg) {
+      return reply.code(404).send({ error: 'Package not found' });
+    }
+
     try {
-      await npmRun(['install', `${packageName}@latest`], deps.workingDir);
-
-      const packageDir = await resolvePackagePath(packageName, deps.workingDir);
-      const scanned = await scanPackage(packageDir);
-      if (!scanned) {
-        return reply.code(400).send({ error: 'Package scan failed after update' });
+      let packagePath: string;
+      if (pkg.source === 'git') {
+        // Pull latest for git packages
+        packagePath = join(packagesDir, packageName);
+        await gitPull(packagePath);
+      } else if (pkg.source === 'npm') {
+        // npm update
+        await npmRun(['install', `${packageName}@latest`], deps.workingDir);
+        packagePath = join(deps.workingDir, 'node_modules', packageName);
+      } else {
+        return reply.code(400).send({ error: 'Cannot update local or native packages' });
       }
 
-      const db = getDatabase();
-      if (packageName.startsWith('revahub-module-')) {
-        await db.update(modules).set({ version: scanned.version })
-          .where(eq(modules.name, packageName));
-      } else if (packageName.startsWith('revahub-task-')) {
-        await db.update(tasks).set({ version: scanned.version })
-          .where(eq(tasks.name, packageName));
-      }
-
-      return { success: true, version: scanned.version };
+      // Re-scan to update registry
+      const entry = await registerPackage(packagePath, pkg.source, deps.nativePackages);
+      return { success: true, version: entry?.version };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Update failed' });
+    }
+  });
+
+  // Import local package by path (symlink)
+  app.post<{ Body: { path: string } }>('/marketplace/import/local', async (req, reply) => {
+    const { path } = req.body;
+
+    if (!path) {
+      return reply.code(400).send({ error: 'Path is required' });
+    }
+
+    const absPath = resolvePath(path);
+    if (!existsSync(absPath)) {
+      return reply.code(404).send({ error: 'Path does not exist' });
+    }
+
+    // Scan to validate
+    const scanned = await scanPackage(absPath);
+    if (!scanned) {
+      return reply.code(400).send({ error: 'Invalid revahub package at path' });
+    }
+
+    try {
+      await mkdir(packagesDir, { recursive: true });
+      const linkPath = join(packagesDir, scanned.name);
+
+      // Remove existing if present
+      if (existsSync(linkPath)) {
+        await rm(linkPath, { recursive: true, force: true });
+      }
+
+      await symlink(absPath, linkPath, 'dir');
+      const entry = await registerPackage(linkPath, 'local', deps.nativePackages);
+      return { success: true, package: entry };
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : 'Import failed' });
+    }
+  });
+
+  // Import from git URL
+  app.post<{ Body: { url: string; name?: string } }>('/marketplace/import/git', async (req, reply) => {
+    const { url, name } = req.body;
+
+    if (!url) {
+      return reply.code(400).send({ error: 'Git URL is required' });
+    }
+
+    // Derive package name from URL if not provided
+    const derivedName = name || basename(url, '.git');
+
+    try {
+      await mkdir(packagesDir, { recursive: true });
+      const cloneDir = join(packagesDir, derivedName);
+
+      if (existsSync(cloneDir)) {
+        return reply.code(409).send({ error: 'Package directory already exists' });
+      }
+
+      await gitClone(url, cloneDir);
+
+      // Validate after clone
+      const scanned = await scanPackage(cloneDir);
+      if (!scanned) {
+        await rm(cloneDir, { recursive: true, force: true });
+        return reply.code(400).send({ error: 'Cloned repo is not a valid revahub package' });
+      }
+
+      const entry = await registerPackage(cloneDir, 'git', deps.nativePackages);
+      return { success: true, package: entry };
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : 'Git import failed' });
+    }
+  });
+
+  // Pull latest for git packages
+  app.post<{ Body: { packageName: string } }>('/marketplace/pull', async (req, reply) => {
+    const { packageName } = req.body;
+
+    const pkg = getPackage(packageName);
+    if (!pkg) {
+      return reply.code(404).send({ error: 'Package not found' });
+    }
+
+    if (pkg.source !== 'git') {
+      return reply.code(400).send({ error: 'Only git packages can be pulled' });
+    }
+
+    try {
+      const pkgDir = join(packagesDir, packageName);
+      await gitPull(pkgDir);
+
+      // Re-scan
+      const entry = await registerPackage(pkgDir, 'git', deps.nativePackages);
+      return { success: true, version: entry?.version };
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : 'Pull failed' });
+    }
+  });
+
+  // Remove local/git package
+  app.post<{ Body: { packageName: string } }>('/marketplace/remove-local', async (req, reply) => {
+    const { packageName } = req.body;
+
+    const pkg = getPackage(packageName);
+    if (!pkg) {
+      return reply.code(404).send({ error: 'Package not found' });
+    }
+
+    if (pkg.source !== 'local' && pkg.source !== 'git') {
+      return reply.code(400).send({ error: 'Only local and git packages can be removed this way' });
+    }
+
+    try {
+      const pkgDir = join(packagesDir, packageName);
+      if (existsSync(pkgDir)) {
+        await rm(pkgDir, { recursive: true, force: true });
+      }
+
+      deregisterPackage(packageName);
+      return { success: true };
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : 'Remove failed' });
+    }
+  });
+
+  // List local packages
+  app.get('/marketplace/local', async (_req, reply) => {
+    try {
+      if (!existsSync(packagesDir)) {
+        return [];
+      }
+
+      const entries = await readdir(packagesDir, { withFileTypes: true });
+      const packages = [];
+      for (const entry of entries) {
+        if (entry.isDirectory() || entry.isSymbolicLink()) {
+          const pkgPath = join(packagesDir, entry.name);
+          const scanned = await scanPackage(pkgPath);
+          if (scanned) {
+            const registered = getPackage(scanned.name);
+            packages.push({
+              name: scanned.name,
+              version: scanned.version,
+              source: registered?.source ?? 'local',
+              path: pkgPath
+            });
+          }
+        }
+      }
+      return packages;
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : 'Failed to list local packages' });
     }
   });
 }

@@ -4,10 +4,10 @@ import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { getDatabase } from '../db/index.js';
-import { taskConfigs, taskRuns, tasks } from '../db/schema.js';
+import { tasks, taskRuns } from '../db/schema.js';
 import { CoreEventBus } from './event-bus.js';
 import { ModuleManager } from './module-manager.js';
-import { resolvePackagePath, scanPackage } from './package-scanner.js';
+import { getPackage } from './package-scanner.js';
 import type {
   EventPayload,
   InstanceProxy,
@@ -15,7 +15,7 @@ import type {
   TaskContext,
   TaskFunction,
   TriggerType
-} from '../types.js';
+} from 'revahub-types';
 
 /**
  * Generates a prefixed unique ID.
@@ -59,13 +59,20 @@ export class TaskRunner {
     this.cronJobs.clear();
 
     const db = getDatabase();
-    const configs = await db.select().from(taskConfigs)
-      .where(eq(taskConfigs.enabled, true));
+    const allTasks = await db.select().from(tasks)
+      .where(eq(tasks.enabled, true));
 
-    for (const config of configs) {
-      const options = config.options as TaskConfigOptions;
+    for (const task of allTasks) {
+      // Check if package exists
+      const pkg = getPackage(task.taskName);
+      if (!pkg) {
+        console.warn(`[TaskRunner] Skipping task "${task.id}" — package "${task.taskName}" missing`);
+        continue;
+      }
+
+      const options = task.options as TaskConfigOptions;
       if (options.trigger?.type === 'cron' && options.trigger.cron) {
-        this.scheduleCron(config.id, options.trigger.cron);
+        this.scheduleCron(task.id, options.trigger.cron);
       }
     }
   }
@@ -75,20 +82,20 @@ export class TaskRunner {
    * @param taskConfigId - The task config to schedule
    * @param cronExpression - Standard cron expression
    */
-  private scheduleCron(taskConfigId: string, cronExpression: string) {
+  private scheduleCron(taskId: string, cronExpression: string) {
     if (!cron.validate(cronExpression)) {
-      console.error(`[TaskRunner] Invalid cron expression "${cronExpression}" for task config "${taskConfigId}"`);
+      console.error(`[TaskRunner] Invalid cron expression "${cronExpression}" for task "${taskId}"`);
       return;
     }
 
     const job = cron.schedule(cronExpression, () => {
-      void this.invoke(taskConfigId, 'cron');
+      void this.invoke(taskId, 'cron');
     });
 
-    this.cronJobs.set(taskConfigId, job);
+    this.cronJobs.set(taskId, job);
   }
 
-  /** Subscribes to the event bus and triggers matching task configs. */
+  /** Subscribes to the event bus and triggers matching tasks. */
   private subscribeToEvents() {
     this.eventListener = (payload: EventPayload) => {
       void this.handleEvent(payload);
@@ -103,17 +110,17 @@ export class TaskRunner {
    */
   private async handleEvent(payload: EventPayload) {
     const db = getDatabase();
-    const configs = await db.select().from(taskConfigs)
-      .where(eq(taskConfigs.enabled, true));
+    const allTasks = await db.select().from(tasks)
+      .where(eq(tasks.enabled, true));
 
-    for (const config of configs) {
-      const options = config.options as TaskConfigOptions;
+    for (const task of allTasks) {
+      const options = task.options as TaskConfigOptions;
       if (
         options.trigger?.type === 'event' &&
         options.trigger.instance === payload.instance &&
         options.trigger.event === payload.event
       ) {
-        void this.invoke(config.id, 'event', payload);
+        void this.invoke(task.id, 'event', payload);
       }
     }
   }
@@ -127,35 +134,35 @@ export class TaskRunner {
    * @param retryCount - Current retry attempt
    */
   async invoke(
-    taskConfigId: string,
+    taskId: string,
     triggerType: TriggerType,
     event?: EventPayload,
     webhookBody?: unknown,
     retryCount = 0
   ): Promise<{ runId: string; result?: unknown; error?: string }> {
     const db = getDatabase();
-    const [config] = await db.select().from(taskConfigs)
+    const [task] = await db.select().from(tasks)
       .where(
-        and(eq(taskConfigs.id, taskConfigId), eq(taskConfigs.enabled, true))
+        and(eq(tasks.id, taskId), eq(tasks.enabled, true))
       );
 
-    if (!config) {
-      throw new Error(`Task config "${taskConfigId}" not found or disabled`);
-    }
-
-    const [task] = await db.select().from(tasks)
-      .where(eq(tasks.name, config.taskName));
     if (!task) {
-      throw new Error(`Task "${config.taskName}" not found`);
+      throw new Error(`Task "${taskId}" not found or disabled`);
     }
 
-    const options = config.options as TaskConfigOptions;
+    // Check if package exists in registry
+    const pkg = getPackage(task.taskName);
+    if (!pkg) {
+      throw new Error(`Task package "${task.taskName}" not found`);
+    }
+
+    const options = task.options as TaskConfigOptions;
 
     // Create the task run record
     const runId = generateId('run');
     await db.insert(taskRuns).values({
       id: runId,
-      taskConfigId,
+      taskId,
       triggerType,
       triggerPayload: event ?? webhookBody ?? null,
       status: 'running',
@@ -201,19 +208,13 @@ export class TaskRunner {
         instances: instances as TaskContext['instances']
       };
 
-      // Load and execute the task
-      const taskDir = await resolvePackagePath(config.taskName, this.workingDir);
-      const scanned = await scanPackage(taskDir);
-      if (!scanned) {
-        throw new Error(`Failed to scan task package "${config.taskName}"`);
-      }
-
-      const taskEntryPath = join(taskDir, scanned.main);
+      // Load and execute the task from registry
+      const taskEntryPath = join(pkg.path, pkg.main);
       const mod = await import(pathToFileURL(taskEntryPath).href);
       const taskFn: TaskFunction = mod.default?.default ?? mod.default;
 
       if (typeof taskFn !== 'function') {
-        throw new Error(`Task "${config.taskName}" does not export a function`);
+        throw new Error(`Task "${task.taskName}" does not export a function`);
       }
 
       const timeoutMs = options.timeout ?? 0;
@@ -256,7 +257,7 @@ export class TaskRunner {
 
       // Auto-restart on success
       if (options.autoRestart) {
-        void this.invoke(taskConfigId, triggerType, event);
+        void this.invoke(taskId, triggerType, event);
       }
 
       return { runId, result: result as object };
@@ -275,7 +276,7 @@ export class TaskRunner {
       // Auto-retry on failure/timeout
       const maxRetries = options.maxRetries ?? 3;
       if (options.autoRetry && retryCount < maxRetries) {
-        void this.invoke(taskConfigId, triggerType, event, webhookBody, retryCount + 1);
+        void this.invoke(taskId, triggerType, event, webhookBody, retryCount + 1);
       }
 
       return { runId, error: errorMessage };
@@ -285,14 +286,14 @@ export class TaskRunner {
   /**
    * Returns all webhook-enabled task config IDs and their details.
    */
-  async getWebhookConfigs(): Promise<Array<{ id: string; taskName: string }>> {
+  async getWebhookTasks(): Promise<Array<{ id: string; taskName: string }>> {
     const db = getDatabase();
-    const configs = await db.select().from(taskConfigs)
-      .where(eq(taskConfigs.enabled, true));
+    const allTasks = await db.select().from(tasks)
+      .where(eq(tasks.enabled, true));
 
-    return configs
-      .filter((c) => (c.options as TaskConfigOptions).exposeWebhook)
-      .map((c) => ({ id: c.id, taskName: c.taskName }));
+    return allTasks
+      .filter((t) => (t.options as TaskConfigOptions).exposeWebhook)
+      .map((t) => ({ id: t.id, taskName: t.taskName }));
   }
 
   /** Stops all cron jobs and unsubscribes from events. */

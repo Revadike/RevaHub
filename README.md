@@ -1,61 +1,64 @@
 # RevaHub
 
-A self-hosted, event-driven automation platform with a plugin-based module and task ecosystem. Written in TypeScript, distributed via npm, managed through a web dashboard.
+A self-hosted, event-driven automation platform with a filesystem-based plugin ecosystem. Written in TypeScript, powered by PGlite, distributed via npm, managed through a web dashboard.
 
 ## Overview
 
 RevaHub is the infrastructure layer for automation. Users install and configure **modules** (persistent service adapters) and **tasks** (automation scripts) as npm packages. Tasks are triggered by module events, cron schedules, webhooks, or manually. Everything is configured and monitored through a built-in web dashboard.
 
-The platform runs as a single Node.js process. Module instances run in isolated worker threads. All packages are standard npm packages discovered and installed via npm.
+The platform runs as a single Node.js process with an embedded PGlite database. Module instances run in isolated worker threads. All packages are standard npm packages discovered from the filesystem and managed via npm.
 
-## Features
+## Key Features
 
-- **Module system** — Persistent service adapters run in isolated worker threads. One or more instances per module, each with its own configuration.
-- **Task system** — Short-lived async automation scripts triggered by events, cron, webhooks, or manually.
-- **Event bus** — Module instances emit named events routed to matching task configs.
-- **Auto-generated UI forms** — Option definitions in `package.json` drive the configuration UI automatically.
-- **Marketplace** — Browse, install, update, and uninstall modules and tasks directly from the dashboard.
-- **Live log streaming** — Instance and task-run logs streamed via WebSocket.
-- **PostgreSQL storage** — All state persisted via Drizzle ORM with migrations.
+- **Embedded database** — PGlite (PostgreSQL in WebAssembly) eliminates external database dependencies
+- **Filesystem-based ecosystem** — Packages discovered from `node_modules` and local directories, no metadata in database
+- **Module system** — Persistent service adapters run in isolated worker threads with one or more instances per module
+- **Task system** — Short-lived async automation scripts triggered by events, cron, webhooks, or manually
+- **Event bus** — Module instances emit named events routed to matching task configs
+- **Auto-generated UI forms** — Option definitions in `package.json` drive the configuration UI automatically
+- **Package marketplace** — Browse, install, update, and uninstall modules and tasks directly from the dashboard
+- **Live log streaming** — Instance and task-run logs streamed via WebSocket
+- **Hot-reload support** — Local packages watched with chokidar for instant updates during development
+- **Native packages** — Core functionality provided by built-in revahub-module-* and revahub-task-* packages
 
 ---
 
-## Quick Start (Users)
+## Quick Start
 
-RevaHub requires **Node.js 22+** and a **PostgreSQL** database.
+RevaHub requires **Node.js 22+**. No external database needed!
 
-### Option A: Docker (recommended)
-
-```sh
-curl -O https://raw.githubusercontent.com/Revadike/RevaHub/master/docker-compose.yml
-docker compose up -d
-```
-
-This starts RevaHub and PostgreSQL together. Open `http://localhost:3000`.
-
-### Option B: npx
-
-Bring your own PostgreSQL and run:
-
-```sh
-DATABASE_URL=postgresql://user:pass@localhost:5432/revahub npx revahub
-```
-
-Or with the default connection (`revahub:revahub@localhost:5432/revahub`):
+### Installation
 
 ```sh
 npx revahub
 ```
 
-### Environment Variables
+On first run, RevaHub will:
+- Create `~/.revahub/` directory structure
+- Initialize PGlite database
+- Run migrations
+- Register native packages
+- Start HTTP server on port 3000
 
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | `postgresql://revahub:revahub@localhost:5432/revahub` | PostgreSQL connection string |
-| `PORT` | `3000` | HTTP server port |
-| `REVAHUB_DIR` | `~/.revahub` | Working directory for data and installed packages |
+Open `http://localhost:3000` to access the dashboard.
 
-On first run, RevaHub will automatically run database migrations, register native packages, and start the HTTP server.
+### CLI Commands
+
+```sh
+revahub start                          # Start the server (default command)
+revahub create module <name>           # Scaffold a new module package
+revahub create task <name>             # Scaffold a new task package
+revahub install module <name>          # Install a module from npm
+revahub install task <name>            # Install a task from npm
+revahub uninstall module <name>        # Uninstall a module
+revahub uninstall task <name>          # Uninstall a task
+```
+
+### Configuration
+
+- **Server port**: Configurable in the dashboard under **Settings** (requires restart)
+- **Local packages directory**: Optionally configure a custom directory for local development packages
+- **Working directory**: `~/.revahub/` (contains database, packages, and config)
 
 ---
 
@@ -64,7 +67,6 @@ On first run, RevaHub will automatically run database migrations, register nativ
 ### Prerequisites
 
 - Node.js 22+
-- Docker (for the dev database)
 
 ### Setup
 
@@ -74,20 +76,12 @@ cd RevaHub
 npm install
 ```
 
-### Start the dev database
-
-```sh
-npm run db:up
-```
-
-This spins up a PostgreSQL 17 container via `docker-compose.dev.yml` on port `5432` with credentials `revahub:revahub`.
-
 ### Build and run
 
 ```sh
-npm run build          # compile all packages
-npm run build:ui       # build the Vue SPA
-npm start              # start RevaHub (http://localhost:3000)
+npm run build          # Compile all packages
+npm run build:ui       # Build the Vue SPA
+npm start              # Start RevaHub (http://localhost:3000)
 ```
 
 ### Available scripts
@@ -98,30 +92,10 @@ npm start              # start RevaHub (http://localhost:3000)
 | `npm run build:ui` | Build the Vue SPA into `packages/revahub/dist/ui/` |
 | `npm run dev` | Watch-mode TypeScript compilation |
 | `npm start` | Run the compiled RevaHub server |
-| `npm run db:up` | Start the dev PostgreSQL container |
-| `npm run db:down` | Stop the dev PostgreSQL container |
-| `npm run db:reset` | Destroy and recreate the dev database |
 | `npm run lint` | Lint everything |
 | `npm run lint:fix` | Lint and auto-fix |
 
-### Docker build
-
-```sh
-docker build -t revahub .
-docker run -e DATABASE_URL=postgresql://revahub:revahub@host.docker.internal:5432/revahub -p 3000:3000 revahub
-```
-
-Or use the full-stack compose file:
-
-```sh
-docker compose up --build
-```
-
 ---
-
-## Configuration
-
-The working directory can be overridden via the `REVAHUB_DIR` environment variable. The server port is configurable in the dashboard under **Settings** (requires restart).
 
 ## Package Development
 
@@ -130,8 +104,10 @@ The working directory can be overridden via the `REVAHUB_DIR` environment variab
 A module is an npm package named `revahub-module-<name>`. It exports a factory function that receives a `ModuleContext` and returns a running instance object.
 
 ```ts
+import type { ModuleContext } from 'revahub-types';
+
 export default async (ctx: ModuleContext) => {
-  // initialise service connection using ctx.options
+  // Initialize service connection using ctx.options
   ctx.onDestroy(() => { /* cleanup */ });
   return instance; // public methods are auto-detected
 };
@@ -139,11 +115,36 @@ export default async (ctx: ModuleContext) => {
 
 The `package.json` must include a `"revahub"` block with `type: "module"`, a `label`, and an `options` array describing the configuration fields.
 
+Example package.json:
+```json
+{
+  "name": "revahub-module-steam",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "revahub": {
+    "type": "module",
+    "label": "Steam",
+    "description": "Steam Web API integration",
+    "options": [
+      {
+        "key": "apiKey",
+        "label": "API Key",
+        "type": "string",
+        "required": true
+      }
+    ]
+  }
+}
+```
+
 ### Tasks
 
 A task is an npm package named `revahub-task-<name>`. It exports a single async function:
 
 ```ts
+import type { TaskContext } from 'revahub-types';
+
 export default async (ctx: TaskContext) => {
   const result = await ctx.instances.myInstance.doSomething();
   return result;
@@ -157,12 +158,30 @@ export default async (ctx: TaskContext) => {
 | `cron` | Fired on a cron schedule |
 | `event` | Fired when a module instance emits a named event |
 | `manual` | User clicks **Run** in the dashboard |
-| `webhook` | `POST /webhooks/:taskConfigId` |
+| `webhook` | `POST /webhooks/:taskId` |
+
+### Package Installation Methods
+
+| Method | Source Type | Use Case |
+|---|---|---|
+| `npm install` in `~/.revahub/` | `npm` | Standard npm packages |
+| Git URL in package.json | `git` | Private repos or unreleased versions |
+| Local directory symlink | `local` | Development and testing |
+| Dashboard import form | `local` | One-off custom packages |
 
 ## Architecture
 
 ```
 revahub (single Node.js process)
+│
+├── PGlite Database (embedded WebAssembly PostgreSQL)
+│
+├── Package Scanner (filesystem-based discovery)
+│     ├── ~/.revahub/node_modules/ (npm/git packages)
+│     ├── ~/.revahub/packages/ (default local packages)
+│     └── Custom local directory (optional)
+│
+├── Package Watcher (chokidar hot-reload)
 │
 ├── Module Manager
 │     └── Worker Thread per instance (crash isolated)
@@ -173,32 +192,34 @@ revahub (single Node.js process)
 │     ├── Cron scheduling (node-cron)
 │     └── Webhook routes (Fastify)
 │
-├── Database (PostgreSQL via Drizzle ORM)
-│
 └── HTTP Server (Fastify)
       └── Vue 3 + Vuetify SPA (pre-built, served as static files)
 ```
 
 ## Native Packages
 
-The following packages ship pre-installed and are protected from uninstallation:
+The following packages ship pre-installed and are automatically detected from `revahub`'s own dependencies. They cannot be uninstalled:
 
 | Package | Type | Description |
 |---|---|---|
-| `revahub-module-database` | Module | PostgreSQL access; auto-injected as `ctx.instances.database` |
+| `revahub-module-database` | Module | PGlite database access; auto-injected as `ctx.instances.database` with dual-mode (shared or isolated schema) |
 | `revahub-module-logger` | Module | Structured logging; auto-injected as `ctx.instances.logger` |
 | `revahub-task-cleanup-logs` | Task | Deletes log entries older than a configured age |
 
-## Monorepo
+To add new native packages, simply add them as dependencies in `packages/revahub/package.json` and they'll be automatically detected at runtime.
 
-This repository is an npm workspace monorepo. Native packages live under `packages/` alongside the core.
+## Monorepo Structure
+
+This repository is an npm workspace monorepo. Packages are organized as follows:
 
 ```
 packages/
-  revahub/                    # core platform, HTTP server, dashboard
-  revahub-module-database/    # native database module
-  revahub-module-logger/      # native logger module
-  revahub-task-cleanup-logs/  # native log cleanup task
+  revahub/              # Core platform, HTTP server, CLI
+  revahub-types/        # Shared TypeScript types
+  revahub-ui/           # Vue 3 + Vuetify dashboard (builds to revahub/dist/ui/)
+  revahub-module-database/    # Native database module
+  revahub-module-logger/      # Native logger module
+  revahub-task-cleanup-logs/  # Native cleanup task
 ```
 
 ---

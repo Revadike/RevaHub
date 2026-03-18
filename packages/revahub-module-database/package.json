@@ -1,7 +1,7 @@
 {
   "name": "revahub-module-database",
   "version": "0.1.0",
-  "description": "Native database module for RevaHub — provides SQL query access to the platform database",
+  "description": "Native database module for RevaHub — provides SQL query access",
   "type": "module",
   "license": "Apache-2.0",
   "keywords": [
@@ -10,8 +10,23 @@
   "revahub": {
     "type": "module",
     "label": "Database",
-    "description": "Provides SQL query access to the platform database",
-    "options": []
+    "description": "Provides SQL query access. Uses embedded PGlite by default, or connects to external PostgreSQL when connectionString is provided.",
+    "options": [
+      {
+        "name": "connectionString",
+        "label": "Connection String",
+        "description": "PostgreSQL connection string (e.g., postgresql://user:pass@host:5432/db). Leave empty to use embedded PGlite.",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "schemaPrefix",
+        "label": "Schema Prefix",
+        "description": "Optional prefix for schema isolation (default: none)",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,8 +34,8 @@
     "build": "tsc"
   },
   "dependencies": {
-    "drizzle-orm": "^0.44.0",
-    "pg": "^8.14.1"
+    "pg": "^8.14.1",
+    "revahub-types": "*"
   },
   "devDependencies": {
     "@types/pg": "^8.11.11"

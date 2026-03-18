@@ -1,0 +1,30 @@
+{
+  "name": "revahub-types",
+  "version": "0.1.0",
+  "description": "TypeScript type definitions for RevaHub modules and tasks",
+  "type": "module",
+  "license": "Apache-2.0",
+  "keywords": [
+    "revahub",
+    "types",
+    "typescript"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

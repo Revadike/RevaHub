@@ -1,30 +1,12 @@
 <script setup lang="ts">
   import { ref, onMounted } from 'vue';
   import { apiClient } from '../api';
+  import type { TaskRunRow, LogRow } from 'revahub-types';
 
-  interface LogEntry {
-    id: string;
-    level: string;
-    message: string;
-    timestamp: string;
-  }
-
-  interface TaskRun {
-    id: string;
-    taskConfigId: string;
-    triggerType: string;
-    status: string;
-    result: unknown;
-    error: string | null;
-    retryCount: number;
-    startedAt: string;
-    finishedAt: string | null;
-  }
-
-  const runs = ref<TaskRun[]>([]);
+  const runs = ref<TaskRunRow[]>([]);
   const loading = ref(true);
   const showLogsDialog = ref(false);
-  const runLogs = ref<LogEntry[]>([]);
+  const runLogs = ref<LogRow[]>([]);
   const selectedRunId = ref('');
 
   onMounted(async () => {
@@ -34,7 +16,7 @@
   async function loadData() {
     loading.value = true;
     try {
-      runs.value = await apiClient.getTaskRuns({ limit: 50 }) as TaskRun[];
+      runs.value = await apiClient.getTaskRuns({ limit: 50 });
     } catch (err) {
       console.error('Failed to load task runs:', err);
     } finally {
@@ -46,10 +28,16 @@
     selectedRunId.value = runId;
     showLogsDialog.value = true;
     try {
-      runLogs.value = await apiClient.getLogs({ taskRunId: runId, limit: 200 }) as LogEntry[];
+      runLogs.value = await apiClient.getLogs({ taskRunId: runId, limit: 200 });
     } catch {
       runLogs.value = [];
     }
+  }
+
+  function formatDate(date: Date | null): string {
+    if (!date) return '-';
+
+    return new Date(date).toLocaleString();
   }
 
   function statusColor(status: string): string {
@@ -59,19 +47,12 @@
       failed: 'error',
       timed_out: 'warning'
     };
-
     return colors[status] ?? 'grey';
   }
 
   function levelColor(level: string): string {
     const colors: Record<string, string> = { error: 'error', warn: 'warning', info: 'info', debug: 'grey' };
     return colors[level] ?? 'grey';
-  }
-
-  function formatDate(dateStr: string | null): string {
-    if (!dateStr) return '—';
-
-    return new Date(dateStr).toLocaleString();
   }
 </script>
 
@@ -109,7 +90,7 @@
             v-for="run in runs"
             :key="run.id">
             <td class="text-mono">{{ run.id }}</td>
-            <td>{{ run.taskConfigId }}</td>
+            <td>{{ run.taskId }}</td>
             <td>{{ run.triggerType }}</td>
             <td>
               <v-chip

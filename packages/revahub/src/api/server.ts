@@ -10,8 +10,10 @@ import { registerLogRoutes } from './routes/logs.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerMarketplaceRoutes } from './routes/marketplace.js';
 import { registerLogStreamRoutes } from './routes/log-stream.js';
+import { registerPackageRoutes } from './routes/packages.js';
 import type { ModuleManager } from '../core/module-manager.js';
 import type { TaskRunner } from '../core/task-runner.js';
+import type { PackageWatcher } from '../core/package-watcher.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,12 +22,15 @@ export interface ServerDeps {
   moduleManager: ModuleManager;
   taskRunner: TaskRunner;
   workingDir: string;
+  nativePackages: Set<string>;
+  packageWatcher?: PackageWatcher;
 }
 
 /**
  * Creates and configures the Fastify HTTP server with all API routes,
  * WebSocket support, and static file serving for the Vue SPA.
  * @param deps - Core service dependencies
+ * @returns Configured Fastify server instance
  */
 export async function createServer(deps: ServerDeps) {
   const app = Fastify({ logger: true });
@@ -43,6 +48,7 @@ export async function createServer(deps: ServerDeps) {
   // API routes
   await app.register(
     async (api) => {
+      registerPackageRoutes(api, deps);
       registerModuleRoutes(api, deps);
       registerTaskRoutes(api, deps);
       registerLogRoutes(api);

@@ -3,9 +3,10 @@ import { pathToFileURL } from 'node:url';
 import type {
   ModuleContext,
   ModuleFactory,
+  ModuleInstances,
   WorkerCallMessage,
   WorkerInboundMessage
-} from '../types.js';
+} from 'revahub-types';
 
 if (!parentPort) {
   throw new Error('module-worker must run inside a Worker thread');
@@ -61,6 +62,37 @@ function createInstanceProxy(targetInstanceId: string): Record<string, (...args:
   });
 }
 
+/**
+ */
+function createPGliteProxy() {
+  return {
+    async query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }> {
+      const correlationId = `${Date.now()}-${Math.random().toString(36)
+        .slice(2, 9)}`;
+      return new Promise((resolve, reject) => {
+        const handler = (msg: { type: string; correlationId: string; result?: unknown; error?: string }) => {
+          if (msg.type === 'pglite-result' && msg.correlationId === correlationId) {
+            port.off('message', handler);
+            if (msg.error) {
+              reject(new Error(msg.error));
+            } else {
+              resolve(msg.result as { rows: T[] });
+            }
+          }
+        };
+
+        port.on('message', handler);
+        port.postMessage({
+          type: 'pglite-query',
+          text,
+          params,
+          correlationId
+        });
+      });
+    }
+  };
+}
+
 const ctx: ModuleContext = {
   options: data.options,
   emit(eventName: string, eventData: unknown) {
@@ -70,8 +102,9 @@ const ctx: ModuleContext = {
     destroyCallbacks.push(fn);
   },
   instances: {
-    logger: createInstanceProxy('__native_logger__'),
-    database: createInstanceProxy('__native_database__')
+    logger: createInstanceProxy('__native_logger__') as unknown as ModuleInstances['logger'],
+    database: createInstanceProxy('__native_database__') as unknown as ModuleInstances['database'],
+    pglite: createPGliteProxy()
   }
 };
 
@@ -83,8 +116,8 @@ for (const [key, instanceId] of Object.entries(data.connectedInstances)) {
 let instance: Record<string, unknown> | null = null;
 
 /**
- * Handles an incoming RPC call from the main thread.
  * @param msg - The call message with method name and arguments
+ * @returns
  */
 async function handleCall(msg: WorkerCallMessage) {
   try {

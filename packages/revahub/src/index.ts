@@ -1,24 +1,22 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, writeFile, access } from 'node:fs/promises';
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-import { initDatabase, getDatabase } from './db/index.js';
+import { initDatabase, getDatabase, closeDatabase } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
-import { modules, moduleInstances, tasks, settings } from './db/schema.js';
+import { moduleInstances, tasks, settings } from './db/schema.js';
 import { CoreEventBus } from './core/event-bus.js';
 import { ModuleManager } from './core/module-manager.js';
 import { TaskRunner } from './core/task-runner.js';
-import { resolvePackagePath, scanPackage } from './core/package-scanner.js';
+import { PackageWatcher } from './core/package-watcher.js';
+import {
+  scanAllPackages,
+  getPackageRegistry,
+  registerPackage,
+  resolvePackagePath
+} from './core/package-scanner.js';
 import { createServer } from './api/server.js';
 import { eq } from 'drizzle-orm';
-
-const execAsync = promisify(exec);
-
-const NATIVE_MODULES = ['revahub-module-database', 'revahub-module-logger'];
-const NATIVE_TASKS = ['revahub-task-cleanup-logs'];
-const DEFAULT_PORT = 3000;
-const DEFAULT_DB_URL = 'postgresql://revahub:revahub@localhost:5432/revahub';
+import { getNativePackages, getNativeModules } from './utils/native-packages.js';
 
 /**
  * Resolves the working directory for RevaHub data and packages.
@@ -34,6 +32,8 @@ function getWorkingDir(envOverride?: string): string {
  */
 async function ensureWorkingDir(dir: string) {
   await mkdir(dir, { recursive: true });
+  await mkdir(join(dir, 'db'), { recursive: true });
+  await mkdir(join(dir, 'packages'), { recursive: true });
 
   const pkgPath = join(dir, 'package.json');
   try {
@@ -48,169 +48,188 @@ async function ensureWorkingDir(dir: string) {
 }
 
 /**
+ * @template T
+ * @param key - Setting key
+ * @returns Setting value
+ */
+async function getSetting<T>(key: string): Promise<T | undefined> {
+  const db = getDatabase();
+  const [row] = await db.select().from(settings)
+    .where(eq(settings.key, key));
+  return row?.value as T | undefined;
+}
+
+/**
  * Registers a native module in the database and creates its default instance.
  * @param moduleName - npm package name of the native module
  * @param workingDir - Workspace root
  */
-async function registerNativeModule(moduleName: string, workingDir: string) {
-  const packageDir = await resolvePackagePath(moduleName, workingDir);
-  const scanned = await scanPackage(packageDir);
-
-  if (!scanned || scanned.revahub.type !== 'module') {
-    console.error(`[Init] Failed to scan native module: ${moduleName}`);
-    return;
-  }
-
+async function ensureDefaultSettings() {
   const db = getDatabase();
-  const meta = scanned.revahub;
-
-  await db.insert(modules).values({
-    name: scanned.name,
-    version: scanned.version,
-    label: meta.label,
-    native: true
-  })
-    .onConflictDoUpdate({
-      target: modules.name,
-      set: { version: scanned.version, label: meta.label }
-    });
-
-  // Create default instance if none exists
-  const shortName = moduleName.replace('revahub-module-', '');
-  const defaultId = `__native_${shortName}__`;
-  const existing = await db.select().from(moduleInstances)
-    .where(eq(moduleInstances.id, defaultId));
-
-  if (existing.length === 0) {
-    await db.insert(moduleInstances).values({
-      id: defaultId,
-      moduleName: scanned.name,
-      label: shortName,
-      options: {},
-      enabled: true,
-      autoRestart: true
-    });
-  }
-}
-
-/**
- * Registers a native task in the database.
- * @param taskName - npm package name of the native task
- * @param workingDir - Workspace root
- */
-async function registerNativeTask(taskName: string, workingDir: string) {
-  const packageDir = await resolvePackagePath(taskName, workingDir);
-  const scanned = await scanPackage(packageDir);
-
-  if (!scanned || scanned.revahub.type !== 'task') {
-    console.error(`[Init] Failed to scan native task: ${taskName}`);
-    return;
-  }
-
-  const db = getDatabase();
-  const meta = scanned.revahub;
-
-  await db.insert(tasks).values({
-    name: scanned.name,
-    version: scanned.version,
-    label: meta.label,
-    native: true
-  })
-    .onConflictDoUpdate({
-      target: tasks.name,
-      set: { version: scanned.version, label: meta.label }
-    });
-}
-
-/**
- * Initializes default settings in the database.
- * @param port - Default server port
- */
-async function ensureDefaultSettings(port: number) {
-  const db = getDatabase();
-  await db.insert(settings).values({ key: 'port', value: port })
+  await db.insert(settings).values({ key: 'port', value: 3000 })
+    .onConflictDoNothing();
+  await db.insert(settings).values({ key: 'localPackagesDir', value: null })
     .onConflictDoNothing();
 }
 
 /**
- * Boots the RevaHub platform: initializes the database, registers native
- * packages, starts all module instances, sets up task triggers, and
- * launches the HTTP server.
+ * @param nativeModules - Array of native module package names
+ * @returns
+ */
+async function ensureNativeModuleInstances(nativeModules: string[]) {
+  const db = getDatabase();
+  const registry = getPackageRegistry();
+
+  for (const moduleName of nativeModules) {
+    const pkg = registry.get(moduleName);
+    if (!pkg || pkg.type !== 'module') continue;
+
+    const shortName = moduleName.replace('revahub-module-', '');
+    const defaultId = `__native_${shortName}__`;
+
+    const [existing] = await db.select().from(moduleInstances)
+      .where(eq(moduleInstances.id, defaultId));
+
+    if (!existing) {
+      await db.insert(moduleInstances).values({
+        id: defaultId,
+        moduleName,
+        label: shortName,
+        options: {},
+        enabled: true,
+        autoRestart: true
+      });
+    }
+  }
+}
+
+/**
+ * @returns
+ */
+async function flagMissingPackages() {
+  const db = getDatabase();
+  const registry = getPackageRegistry();
+
+  const allInstances = await db.select().from(moduleInstances);
+  for (const instance of allInstances) {
+    if (!registry.has(instance.moduleName)) {
+      await db.update(moduleInstances)
+        .set({ status: 'missing' })
+        .where(eq(moduleInstances.id, instance.id));
+    }
+  }
+
+  const allTasks = await db.select().from(tasks);
+  for (const task of allTasks) {
+    if (!registry.has(task.taskName)) {
+      console.warn(`Task package "${task.taskName}" not found for task "${task.id}"`);
+    }
+  }
+}
+
+/**
+ * @returns
  */
 export async function start() {
-  const workingDir = getWorkingDir(process.env.REVAHUB_DIR);
-  const dbUrl = process.env.DATABASE_URL ?? DEFAULT_DB_URL;
-  const port = parseInt(process.env.PORT ?? String(DEFAULT_PORT), 10);
+  const workingDir = getWorkingDir();
 
-  console.info('[RevaHub] Starting...');
-  console.info(`[RevaHub] Working directory: ${workingDir}`);
+  console.info('Starting...');
+  console.info(`Working directory: ${workingDir}`);
 
-  // 1. Ensure working directory
   await ensureWorkingDir(workingDir);
-  console.info('[RevaHub] Working directory ready');
+  console.info('Working directory ready');
 
-  // 2. Initialize database
-  initDatabase(dbUrl);
-  console.info('[RevaHub] Database pool initialized');
+  const dbDir = join(workingDir, 'db');
+  await initDatabase(dbDir);
+  console.info('PGlite database initialized');
 
-  // 3. Run migrations
   const migrationsDir = join(import.meta.dirname ?? '.', 'db', 'migrations');
   try {
     await runMigrations(migrationsDir);
-    console.info('[RevaHub] Migrations complete');
+    console.info('Migrations complete');
   } catch (err) {
-    console.error('[RevaHub] Migration warning:', err instanceof Error ? err.message : err);
+    console.error('Migration warning:', err instanceof Error ? err.message : err);
   }
 
-  // 4. Install and register native packages
-  for (const mod of NATIVE_MODULES) {
-    console.info(`[RevaHub] Registering native module: ${mod}`);
+  await ensureDefaultSettings();
+
+  const port = await getSetting<number>('port') ?? 3000;
+  const localPackagesDir = await getSetting<string>('localPackagesDir') ?? null;
+
+  const nativePackages = getNativePackages();
+  console.info(`Detected ${nativePackages.size} native packages`);
+
+  for (const pkgName of nativePackages) {
     try {
-      await execAsync(`npm install ${mod}`, { cwd: workingDir });
-    } catch {
-      // May already be installed via workspace
+      const pkgPath = await resolvePackagePath(pkgName, workingDir);
+      await registerPackage(pkgPath, 'npm', nativePackages);
+      console.info(`Registered native package: ${pkgName}`);
+    } catch (err) {
+      console.warn(`Failed to register native package ${pkgName}:`, err);
     }
-
-    await registerNativeModule(mod, workingDir);
   }
 
-  for (const task of NATIVE_TASKS) {
-    try {
-      await execAsync(`npm install ${task}`, { cwd: workingDir });
-    } catch {
-      // May already be installed via workspace
-    }
+  console.info('Scanning packages...');
+  await scanAllPackages({
+    workingDir,
+    localPackagesDir,
+    nativePackages
+  });
 
-    await registerNativeTask(task, workingDir);
-  }
+  const registry = getPackageRegistry();
+  console.info(`Found ${registry.size} packages`);
 
-  // 5. Ensure default settings
-  await ensureDefaultSettings(port);
+  await ensureNativeModuleInstances(getNativeModules());
 
-  // 6. Create core services
+  await flagMissingPackages();
+
   const eventBus = new CoreEventBus();
   const moduleManager = new ModuleManager(eventBus, workingDir);
   const taskRunner = new TaskRunner(eventBus, moduleManager, workingDir);
 
-  // 7. Start all enabled instances
   try {
     await moduleManager.startAll();
   } catch (err) {
-    console.error('[RevaHub] Some instances failed to start:', err);
+    console.error('Some instances failed to start:', err);
   }
 
-  // 8. Initialize task triggers
   await taskRunner.initialize();
 
-  // 9. Create and start HTTP server
-  const server = await createServer({ moduleManager, taskRunner, workingDir });
+  const packageWatcher = new PackageWatcher({
+    workingDir,
+    localPackagesDir,
+    nativePackages,
+    onPackageAdded: async (name) => {
+      console.info(`Package added: ${name}`);
+      await scanAllPackages({ workingDir, localPackagesDir, nativePackages });
+    },
+    onPackageChanged: async (name) => {
+      console.info(`Package changed: ${name}`);
+      await scanAllPackages({ workingDir, localPackagesDir, nativePackages });
+    },
+    onPackageRemoved: async (name) => {
+      console.info(`Package removed: ${name}`);
+      await flagMissingPackages();
+    }
+  });
 
-  // Graceful shutdown
+  packageWatcher.start();
+
+  const server = await createServer({
+    moduleManager,
+    taskRunner,
+    workingDir,
+    nativePackages,
+    packageWatcher
+  });
+
   const shutdown = async () => {
-    console.info('[RevaHub] Shutting down...');
+    console.info('Shutting down...');
+    packageWatcher.stop();
     await taskRunner.shutdown();
     await moduleManager.shutdownAll();
     await server.close();
+    await closeDatabase();
     process.exit(0);
   };
 
@@ -218,8 +237,8 @@ export async function start() {
   process.on('SIGINT', () => void shutdown());
 
   await server.listen({ port, host: '0.0.0.0' });
-  console.info(`[RevaHub] Server running on http://localhost:${port}`);
+  console.info(`Server running on http://localhost:${port}`);
 }
 
-export * from './types.js';
+export * from 'revahub-types';
 export * from './db/schema.js';

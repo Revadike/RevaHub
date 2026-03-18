@@ -1,8 +1,8 @@
 import { eq, desc } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { getDatabase } from '../../db/index.js';
-import { tasks, taskConfigs, taskRuns } from '../../db/schema.js';
-import { resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
+import { tasks, taskRuns } from '../../db/schema.js';
+import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import type { ServerDeps } from '../server.js';
 import type { FastifyInstance } from 'fastify';
 
@@ -12,26 +12,42 @@ import type { FastifyInstance } from 'fastify';
  * @param deps - Core service dependencies
  */
 export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
-  // List all tasks
-  app.get('/tasks', async () => {
-    const db = getDatabase();
-    return db.select().from(tasks);
+  // List all task packages (from registry)
+  app.get('/task-packages', async () => {
+    const registry = getPackageRegistry();
+    const taskPackages = [];
+    for (const entry of registry.values()) {
+      if (entry.type === 'task') {
+        taskPackages.push({
+          name: entry.name,
+          version: entry.version,
+          label: entry.label,
+          source: entry.source,
+          native: entry.native
+        });
+      }
+    }
+    return taskPackages;
   });
 
-  // Get a single task
-  app.get<{ Params: { name: string } }>('/tasks/:name', async (req, reply) => {
-    const db = getDatabase();
-    const [task] = await db.select().from(tasks)
-      .where(eq(tasks.name, req.params.name));
-    if (!task) {
-      return reply.code(404).send({ error: 'Task not found' });
+  // Get a single task package
+  app.get<{ Params: { name: string } }>('/task-packages/:name', async (req, reply) => {
+    const pkg = getPackage(req.params.name);
+    if (!pkg || pkg.type !== 'task') {
+      return reply.code(404).send({ error: 'Task package not found' });
     }
 
-    return task;
+    return {
+      name: pkg.name,
+      version: pkg.version,
+      label: pkg.label,
+      source: pkg.source,
+      native: pkg.native
+    };
   });
 
-  // Get option definitions for a task
-  app.get<{ Params: { name: string } }>('/tasks/:name/options', async (req, reply) => {
+  // Get option definitions for a task package
+  app.get<{ Params: { name: string } }>('/task-packages/:name/options', async (req, reply) => {
     try {
       const packageDir = await resolvePackagePath(req.params.name, deps.workingDir);
       const scanned = await scanPackage(packageDir);
@@ -45,88 +61,88 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
     }
   });
 
-  // List all task configs
-  app.get('/task-configs', async () => {
+  // List all configured tasks (formerly task-configs, now stored in tasks table)
+  app.get('/tasks', async () => {
     const db = getDatabase();
-    return db.select().from(taskConfigs);
+    return db.select().from(tasks);
   });
 
-  // List configs for a specific task
-  app.get<{ Params: { name: string } }>('/tasks/:name/configs', async (req) => {
+  // List configs for a specific task package
+  app.get<{ Params: { name: string } }>('/task-packages/:name/tasks', async (req) => {
     const db = getDatabase();
-    return db.select().from(taskConfigs)
-      .where(eq(taskConfigs.taskName, req.params.name));
+    return db.select().from(tasks)
+      .where(eq(tasks.taskName, req.params.name));
   });
 
-  // Get a single task config
-  app.get<{ Params: { id: string } }>('/task-configs/:id', async (req, reply) => {
+  // Get a single configured task
+  app.get<{ Params: { id: string } }>('/tasks/:id', async (req, reply) => {
     const db = getDatabase();
-    const [config] = await db.select().from(taskConfigs)
-      .where(eq(taskConfigs.id, req.params.id));
-    if (!config) {
-      return reply.code(404).send({ error: 'Task config not found' });
+    const [task] = await db.select().from(tasks)
+      .where(eq(tasks.id, req.params.id));
+    if (!task) {
+      return reply.code(404).send({ error: 'Task not found' });
     }
 
-    return config;
+    return task;
   });
 
-  // Create a new task config
+  // Create a new configured task
   app.post<{ Body: { taskName: string; label: string; options?: Record<string, unknown>; enabled?: boolean } }>(
-    '/task-configs',
+    '/tasks',
     async (req, reply) => {
-      const db = getDatabase();
       const { taskName, label, options = {}, enabled = true } = req.body;
 
-      const [task] = await db.select().from(tasks)
-        .where(eq(tasks.name, taskName));
-      if (!task) {
-        return reply.code(400).send({ error: 'Task not found' });
+      // Check task package exists in registry
+      const pkg = getPackage(taskName);
+      if (!pkg || pkg.type !== 'task') {
+        return reply.code(400).send({ error: 'Task package not found' });
       }
 
-      const id = `tc_${randomBytes(3).toString('hex')}`;
-      await db.insert(taskConfigs).values({ id, taskName, label, options, enabled });
+      const db = getDatabase();
+      const id = `task_${randomBytes(3).toString('hex')}`;
+      await db.insert(tasks).values({ id, taskName, label, options, enabled });
 
-      // Refresh cron jobs in case this config has a cron trigger
+      // Refresh cron jobs in case this task has a cron trigger
       await deps.taskRunner.refreshCronJobs();
 
       return reply.code(201).send({ id, taskName, label, options, enabled });
     }
   );
 
-  // Update a task config
+  // Update a configured task
   app.patch<{ Params: { id: string }; Body: Partial<{ label: string; options: Record<string, unknown>; enabled: boolean }> }>(
-    '/task-configs/:id',
+    '/tasks/:id',
     async (req, reply) => {
       const db = getDatabase();
-      const [existing] = await db.select().from(taskConfigs)
-        .where(eq(taskConfigs.id, req.params.id));
+      const [existing] = await db.select().from(tasks)
+        .where(eq(tasks.id, req.params.id));
       if (!existing) {
-        return reply.code(404).send({ error: 'Task config not found' });
+        return reply.code(404).send({ error: 'Task not found' });
       }
 
-      await db.update(taskConfigs).set(req.body)
-        .where(eq(taskConfigs.id, req.params.id));
+      await db.update(tasks).set(req.body)
+        .where(eq(tasks.id, req.params.id));
       await deps.taskRunner.refreshCronJobs();
       return { success: true };
     }
   );
 
-  // Delete a task config
-  app.delete<{ Params: { id: string } }>('/task-configs/:id', async (req, reply) => {
+  // Delete a configured task
+  app.delete<{ Params: { id: string } }>('/tasks/:id', async (req, reply) => {
     const db = getDatabase();
-    const [existing] = await db.select().from(taskConfigs)
-      .where(eq(taskConfigs.id, req.params.id));
+    const [existing] = await db.select().from(tasks)
+      .where(eq(tasks.id, req.params.id));
     if (!existing) {
-      return reply.code(404).send({ error: 'Task config not found' });
+      return reply.code(404).send({ error: 'Task not found' });
     }
 
-    await db.delete(taskConfigs).where(eq(taskConfigs.id, req.params.id));
+    await db.delete(tasks).where(eq(tasks.id, req.params.id));
     await deps.taskRunner.refreshCronJobs();
     return { success: true };
   });
 
   // Manually trigger a task run
-  app.post<{ Params: { id: string } }>('/task-configs/:id/run', async (req, reply) => {
+  app.post<{ Params: { id: string } }>('/tasks/:id/run', async (req, reply) => {
     try {
       const result = await deps.taskRunner.invoke(req.params.id, 'manual');
       return result;
@@ -135,14 +151,14 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
     }
   });
 
-  // List task runs (optionally filtered by task config)
-  app.get<{ Querystring: { taskConfigId?: string; limit?: string } }>('/task-runs', async (req) => {
+  // List task runs (optionally filtered by task)
+  app.get<{ Querystring: { taskId?: string; limit?: string } }>('/task-runs', async (req) => {
     const db = getDatabase();
     const limit = Math.min(parseInt(req.query.limit ?? '50', 10), 200);
 
-    if (req.query.taskConfigId) {
+    if (req.query.taskId) {
       return db.select().from(taskRuns)
-        .where(eq(taskRuns.taskConfigId, req.query.taskConfigId))
+        .where(eq(taskRuns.taskId, req.query.taskId))
         .orderBy(desc(taskRuns.startedAt))
         .limit(limit);
     }

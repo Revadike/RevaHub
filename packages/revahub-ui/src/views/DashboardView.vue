@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { ref, onMounted } from 'vue';
   import { apiClient } from '../api';
+  import type { TaskRunRow } from 'revahub-types';
 
   interface Instance {
     id: string;
@@ -9,16 +10,8 @@
     status: string;
   }
 
-  interface TaskRun {
-    id: string;
-    taskConfigId: string;
-    status: string;
-    triggerType: string;
-    startedAt: string;
-  }
-
   const instances = ref<Instance[]>([]);
-  const recentRuns = ref<TaskRun[]>([]);
+  const recentRuns = ref<TaskRunRow[]>([]);
   const loading = ref(true);
 
   onMounted(async () => {
@@ -29,7 +22,7 @@
       ]);
 
       instances.value = instanceData as Instance[];
-      recentRuns.value = runData as TaskRun[];
+      recentRuns.value = runData;
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -100,7 +93,7 @@
                 v-for="run in recentRuns"
                 :key="run.id"
                 :subtitle="`${run.triggerType} — ${new Date(run.startedAt).toLocaleString()}`"
-                :title="run.taskConfigId"
+                :title="run.taskId"
               >
                 <template #append>
                   <v-chip

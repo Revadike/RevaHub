@@ -12,7 +12,8 @@
     name: string;
     version: string;
     label: string;
-    native: boolean;
+    source: 'native' | 'npm' | 'local' | 'git';
+    status: 'active' | 'missing';
   }
 
   const searchQuery = ref('');
@@ -21,6 +22,11 @@
   const installedTasks = ref<InstalledItem[]>([]);
   const loading = ref(false);
   const actionInProgress = ref<string | null>(null);
+  const importDialog = ref(false);
+  const importMode = ref<'local' | 'git'>('local');
+  const importPath = ref('');
+  const importUrl = ref('');
+  const importLoading = ref(false);
 
   const installedNames = computed(() => {
     const names = new Set<string>();
@@ -36,6 +42,13 @@
     return map;
   });
 
+  const sourceColors: Record<string, string> = {
+    native: 'blue-grey',
+    npm: 'orange',
+    local: 'teal',
+    git: 'purple'
+  };
+
   onMounted(async () => {
     await Promise.all([search(), loadInstalled()]);
   });
@@ -44,7 +57,7 @@
     try {
       const [mods, tsks] = await Promise.all([
         apiClient.getModules(),
-        apiClient.getTasks()
+        apiClient.getTaskPackages()
       ]);
       installedModules.value = mods as InstalledItem[];
       installedTasks.value = tsks as InstalledItem[];
@@ -102,6 +115,32 @@
     }
   }
 
+  function openImportDialog(mode: 'local' | 'git') {
+    importMode.value = mode;
+    importPath.value = '';
+    importUrl.value = '';
+    importDialog.value = true;
+  }
+
+  async function submitImport() {
+    importLoading.value = true;
+    try {
+      if (importMode.value === 'local') {
+        await apiClient.importLocalPackage(importPath.value);
+      } else {
+        await apiClient.importGitPackage(importUrl.value);
+      }
+
+      importDialog.value = false;
+      await loadInstalled();
+    } catch (err) {
+      console.error('Failed to import package:', err);
+      alert(`Import failed: ${(err as Error).message}`);
+    } finally {
+      importLoading.value = false;
+    }
+  }
+
   function isInstalled(name: string): boolean {
     return installedNames.value.has(name);
   }
@@ -117,17 +156,56 @@
 
     return 'Unknown';
   }
+
+  function getSource(name: string): string {
+    const mod = installedModules.value.find(m => m.name === name);
+    if (mod) return mod.source;
+
+    const task = installedTasks.value.find(t => t.name === name);
+    if (task) return task.source;
+
+    return 'npm';
+  }
+
+  function canUninstall(name: string): boolean {
+    const source = getSource(name);
+    return source !== 'native';
+  }
 </script>
 
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Marketplace</h1>
+    <v-row
+      align="center"
+      class="mb-4">
+      <v-col cols="auto">
+        <h1 class="text-h4">Marketplace</h1>
+      </v-col>
+      <v-spacer />
+      <v-col cols="auto">
+        <v-btn
+          class="mr-2"
+          color="teal"
+          variant="outlined"
+          @click="openImportDialog('local')">
+          <v-icon start>mdi-folder-open</v-icon>
+          Import Local
+        </v-btn>
+        <v-btn
+          color="purple"
+          variant="outlined"
+          @click="openImportDialog('git')">
+          <v-icon start>mdi-git</v-icon>
+          Import Git
+        </v-btn>
+      </v-col>
+    </v-row>
 
     <v-text-field
       v-model="searchQuery"
       append-inner-icon="mdi-magnify"
       clearable
-      label="Search packages"
+      label="Search npm packages"
       variant="outlined"
       @click:append-inner="search"
       @keyup.enter="search"
@@ -149,6 +227,11 @@
             <v-chip
               class="mr-2"
               size="small">{{ packageType(pkg.name) }}</v-chip>
+            <v-chip
+              v-if="isInstalled(pkg.name)"
+              class="mr-2"
+              :color="sourceColors[getSource(pkg.name)]"
+              size="small">{{ getSource(pkg.name) }}</v-chip>
             v{{ pkg.version }}
             <template v-if="isInstalled(pkg.name)">
               <v-chip
@@ -181,7 +264,7 @@
               Update
             </v-btn>
             <v-btn
-              v-if="isInstalled(pkg.name)"
+              v-if="isInstalled(pkg.name) && canUninstall(pkg.name)"
               color="error"
               :loading="actionInProgress === pkg.name"
               variant="text"
@@ -197,7 +280,49 @@
     <p
       v-if="!loading && results.length === 0"
       class="text-grey mt-4">
-      No packages found
+      No packages found on npm. Use Import Local or Import Git for development packages.
     </p>
+
+    <!-- Import Dialog -->
+    <v-dialog
+      v-model="importDialog"
+      max-width="500">
+      <v-card>
+        <v-card-title>
+          {{ importMode === 'local' ? 'Import Local Package' : 'Import from Git' }}
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-if="importMode === 'local'"
+            v-model="importPath"
+            hint="Absolute path to the package directory"
+            label="Package Path"
+            persistent-hint
+            variant="outlined"
+          />
+          <v-text-field
+            v-else
+            v-model="importUrl"
+            hint="Git repository URL (HTTPS or SSH)"
+            label="Git URL"
+            persistent-hint
+            variant="outlined"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="importDialog = false">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            :disabled="importMode === 'local' ? !importPath : !importUrl"
+            :loading="importLoading"
+            @click="submitImport">
+            Import
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>

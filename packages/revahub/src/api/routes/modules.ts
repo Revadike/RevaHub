@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { getDatabase } from '../../db/index.js';
-import { modules, moduleInstances } from '../../db/schema.js';
-import { resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
+import { moduleInstances } from '../../db/schema.js';
+import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import type { ServerDeps } from '../server.js';
 import type { FastifyInstance } from 'fastify';
 
@@ -10,24 +10,41 @@ import type { FastifyInstance } from 'fastify';
  * Registers all module and module instance API routes.
  * @param app - Fastify instance scoped to /api
  * @param deps - Core service dependencies
+ * @returns
  */
 export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
-  // List all modules
+  // List all modules (from package registry)
   app.get('/modules', async () => {
-    const db = getDatabase();
-    return db.select().from(modules);
+    const registry = getPackageRegistry();
+    const modules = [];
+    for (const entry of registry.values()) {
+      if (entry.type === 'module') {
+        modules.push({
+          name: entry.name,
+          version: entry.version,
+          label: entry.label,
+          source: entry.source,
+          native: entry.native
+        });
+      }
+    }
+    return modules;
   });
 
   // Get a single module
   app.get<{ Params: { name: string } }>('/modules/:name', async (req, reply) => {
-    const db = getDatabase();
-    const [mod] = await db.select().from(modules)
-      .where(eq(modules.name, req.params.name));
-    if (!mod) {
+    const pkg = getPackage(req.params.name);
+    if (!pkg || pkg.type !== 'module') {
       return reply.code(404).send({ error: 'Module not found' });
     }
 
-    return mod;
+    return {
+      name: pkg.name,
+      version: pkg.version,
+      label: pkg.label,
+      source: pkg.source,
+      native: pkg.native
+    };
   });
 
   // Get option definitions for a module
@@ -74,15 +91,15 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
   app.post<{ Body: { moduleName: string; label: string; options?: Record<string, unknown>; enabled?: boolean } }>(
     '/instances',
     async (req, reply) => {
-      const db = getDatabase();
       const { moduleName, label, options = {}, enabled = true } = req.body;
 
-      const [mod] = await db.select().from(modules)
-        .where(eq(modules.name, moduleName));
-      if (!mod) {
+      // Check module exists in registry
+      const pkg = getPackage(moduleName);
+      if (!pkg || pkg.type !== 'module') {
         return reply.code(400).send({ error: 'Module not found' });
       }
 
+      const db = getDatabase();
       const id = `inst_${randomBytes(3).toString('hex')}`;
       await db.insert(moduleInstances).values({ id, moduleName, label, options, enabled });
 
@@ -125,9 +142,8 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
     }
 
     // Prevent deleting native default instances
-    const [mod] = await db.select().from(modules)
-      .where(eq(modules.name, existing.moduleName));
-    if (mod?.native) {
+    const pkg = getPackage(existing.moduleName);
+    if (pkg?.source === 'native') {
       return reply.code(403).send({ error: 'Cannot delete native module default instance' });
     }
 

@@ -26,6 +26,8 @@
   interface Module {
     name: string;
     label: string;
+    version: string;
+    source: string;
     native: boolean;
   }
 
@@ -47,7 +49,7 @@
     id: '', label: '', options: {}
   });
 
-  const instanceLogs = ref<Array<{ id: string; level: string; message: string; timestamp: string }>>([]);
+  const instanceLogs = ref<Array<{ id: string; level: string; message: string; timestamp: Date }>>([]);
   const logsInstanceId = ref('');
 
   onMounted(async () => {
@@ -75,7 +77,7 @@
       ]);
 
       instances.value = instData as Instance[];
-      modules.value = modData as Module[];
+      modules.value = modData as unknown as Module[];
     } catch (err) {
       console.error('Failed to load instances:', err);
     } finally {
@@ -123,7 +125,7 @@
     logsInstanceId.value = id;
     showLogsDialog.value = true;
     try {
-      instanceLogs.value = await apiClient.getLogs({ moduleInstanceId: id, limit: 100 }) as typeof instanceLogs.value;
+      instanceLogs.value = await apiClient.getLogs({ moduleInstanceId: id, limit: 100 });
     } catch {
       instanceLogs.value = [];
     }
