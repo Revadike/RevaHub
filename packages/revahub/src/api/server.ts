@@ -3,6 +3,7 @@ import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import { registerModuleRoutes } from './routes/modules.js';
 import { registerTaskRoutes } from './routes/tasks.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
@@ -38,14 +39,6 @@ export async function createServer(deps: ServerDeps) {
 
   await app.register(fastifyWebsocket);
 
-  // Serve pre-built Vue SPA
-  const uiDir = join(__dirname, '..', 'ui');
-  await app.register(fastifyStatic, {
-    root: uiDir,
-    prefix: '/',
-    wildcard: false
-  });
-
   // API routes
   await app.register(
     async (api) => {
@@ -65,10 +58,22 @@ export async function createServer(deps: ServerDeps) {
   // WebSocket log streaming
   registerLogStreamRoutes(app);
 
-  // SPA fallback — serve index.html for client-side routing
-  app.setNotFoundHandler((_req, reply) => {
-    return reply.sendFile('index.html');
-  });
+  // Serve pre-built Vue SPA (production mode only)
+  const uiDir = join(__dirname, '..', 'ui');
+  if (existsSync(uiDir)) {
+    await app.register(fastifyStatic, {
+      root: uiDir,
+      prefix: '/',
+      wildcard: false
+    });
+
+    // SPA fallback — serve index.html for client-side routing
+    app.setNotFoundHandler((_req, reply) => {
+      return reply.sendFile('index.html');
+    });
+  } else {
+    app.log.info('UI directory not found - running in dev mode. Frontend should be on port 3000.');
+  }
 
   return app;
 }

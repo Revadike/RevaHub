@@ -16,9 +16,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc && npm run copy:migrations",
+    "build": "tsc && npm run copy:migrations && npm run build:ui",
+    "build:ui": "npm run build -w revahub-ui && node -e \"const{cpSync}=require('fs');cpSync('../revahub-ui/dist','dist/ui',{recursive:true})\"",
     "copy:migrations": "node -e \"const{cpSync}=require('fs');cpSync('src/db/migrations','dist/db/migrations',{recursive:true})\"",
-    "dev": "tsc --watch"
+    "dev": "tsx watch src/cli.ts",
+    "start": "node dist/cli.js"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",
@@ -37,6 +39,7 @@
   "devDependencies": {
     "@types/node-cron": "^3.0.11",
     "drizzle-kit": "^0.31.0",
-    "revahub-types": "*"
+    "revahub-types": "*",
+    "tsx": "^4.21.0"
   }
 }

@@ -49,15 +49,25 @@ Open http://localhost:3000 to access the dashboard.
 git clone https://github.com/Revadike/RevaHub.git
 cd RevaHub
 npm install
+npm run dev
 ```
+
+In dev mode:
+- **Frontend**: Vite dev server on port 3000 with HMR
+- **Backend API**: Runs on port 3001 (TypeScript executed directly with tsx)
+- **Access the app at**: http://localhost:3000
+
+Vite automatically proxies `/api`, `/webhooks`, and `/ws` requests to the backend on port 3001.
 
 ## Scripts
 
 | Script             | Description                                        |
 | ------------------ | -------------------------------------------------- |
-| `npm run build`    | Compile all TypeScript packages                    |
+| `npm run build`    | Compile all TypeScript packages and build UI       |
 | `npm run build:ui` | Build the Vue SPA into `packages/revahub/dist/ui/` |
-| `npm run dev`      | Watch-mode TypeScript compilation                  |
+| `npm run dev`      | Run both API and UI in dev mode (recommended)      |
+| `npm run dev:api`  | Run only the API server in dev mode                |
+| `npm run dev:ui`   | Run only the Vite dev server                       |
 | `npm start`        | Run the compiled RevaHub server                    |
 | `npm run lint`     | Lint everything                                    |
 | `npm run lint:fix` | Lint and auto-fix                                  |

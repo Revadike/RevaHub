@@ -18,9 +18,20 @@ export default defineConfig({
     emptyOutDir: true
   },
   server: {
+    port: 3000,
     proxy: {
-      '/api': 'http://localhost:3000',
-      '/webhooks': 'http://localhost:3000'
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      },
+      '/webhooks': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      },
+      '/ws': {
+        target: 'ws://localhost:3001',
+        ws: true
+      }
     }
   }
 });

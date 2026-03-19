@@ -1,0 +1,2 @@
+- Find project information and infrastructure details in the README.md file.
+- Always consult the #context7 tool to find documentation on relevant packages and technologies.

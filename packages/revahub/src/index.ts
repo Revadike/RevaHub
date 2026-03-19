@@ -157,8 +157,20 @@ export async function start() {
 
   await ensureDefaultSettings();
 
-  const port = await getSetting<number>('port') ?? 3000;
+  // Check if we're in dev mode by checking if we're running from src/ or dist/
+  // When running with tsx, __dirname will be something like .../packages/revahub/src
+  // When running compiled code, __dirname will be .../packages/revahub/dist
+  // TODO: Find better solution
+  const currentDir = import.meta.dirname ?? '';
+  const isDevMode = currentDir.includes('/src') || currentDir.includes('\\src');
+
+  // Use port 3001 in dev mode (ignore database setting), port 3000 in production
+  const port = isDevMode ? 3001 : (await getSetting<number>('port') ?? 3000);
   const localPackagesDir = await getSetting<string>('localPackagesDir') ?? null;
+
+  if (isDevMode) {
+    console.info(`Running in dev mode on port ${port} (Vite should be on port 3000)`);
+  }
 
   const nativePackages = getNativePackages();
   console.info(`Detected ${nativePackages.size} native packages`);
