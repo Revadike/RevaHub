@@ -27,7 +27,8 @@
       <v-divider />
       <v-list
         density="compact"
-        nav>
+        nav
+      >
         <v-list-item
           v-for="item in navItems"
           :key="item.to"

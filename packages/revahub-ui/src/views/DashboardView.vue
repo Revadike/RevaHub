@@ -46,16 +46,20 @@
 
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Dashboard</h1>
+    <h1 class="text-h4 mb-4">
+      Dashboard
+    </h1>
 
     <v-progress-linear
       v-if="loading"
-      indeterminate />
+      indeterminate
+    />
 
     <v-row v-else>
       <v-col
         cols="12"
-        md="6">
+        md="6"
+      >
         <v-card title="Module Instances">
           <v-card-text>
             <v-list v-if="instances.length">
@@ -68,7 +72,8 @@
                 <template #append>
                   <v-chip
                     :color="statusColor(inst.status)"
-                    size="small">
+                    size="small"
+                  >
                     {{ inst.status }}
                   </v-chip>
                 </template>
@@ -76,7 +81,8 @@
             </v-list>
             <p
               v-else
-              class="text-grey">
+              class="text-grey"
+            >
               No instances configured
             </p>
           </v-card-text>
@@ -85,7 +91,8 @@
 
       <v-col
         cols="12"
-        md="6">
+        md="6"
+      >
         <v-card title="Recent Task Runs">
           <v-card-text>
             <v-list v-if="recentRuns.length">
@@ -98,7 +105,8 @@
                 <template #append>
                   <v-chip
                     :color="statusColor(run.status)"
-                    size="small">
+                    size="small"
+                  >
                     {{ run.status }}
                   </v-chip>
                 </template>
@@ -106,7 +114,8 @@
             </v-list>
             <p
               v-else
-              class="text-grey">
+              class="text-grey"
+            >
               No recent runs
             </p>
           </v-card-text>

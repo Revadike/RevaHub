@@ -179,19 +179,23 @@
 <template>
   <div>
     <div class="d-flex align-center mb-4">
-      <h1 class="text-h4">Tasks</h1>
+      <h1 class="text-h4">
+        Tasks
+      </h1>
       <v-spacer />
       <v-btn
         color="primary"
         prepend-icon="mdi-plus"
-        @click="showCreateDialog = true">
+        @click="showCreateDialog = true"
+      >
         New Task
       </v-btn>
     </div>
 
     <v-progress-linear
       v-if="loading"
-      indeterminate />
+      indeterminate
+    />
 
     <v-card v-else>
       <v-table>
@@ -209,30 +213,37 @@
         <tbody>
           <tr
             v-for="task in tasks"
-            :key="task.id">
+            :key="task.id"
+          >
             <td>{{ task.label }}</td>
             <td>{{ task.taskName }}</td>
-            <td class="text-caption">{{ triggerInfo(task.options) }}</td>
+            <td class="text-caption">
+              {{ triggerInfo(task.options) }}
+            </td>
             <td>
               <template v-if="lastRunStatus(task.id)">
                 <v-chip
                   :color="statusColor(lastRunStatus(task.id)!.status)"
-                  size="x-small">
+                  size="x-small"
+                >
                   {{ lastRunStatus(task.id)!.status }}
                 </v-chip>
                 <span class="text-caption ml-1">{{ new Date(lastRunStatus(task.id)!.startedAt).toLocaleString() }}</span>
               </template>
               <span
                 v-else
-                class="text-grey">—</span>
+                class="text-grey"
+              >—</span>
             </td>
             <td>
               <code
                 v-if="webhookUrl(task)"
-                class="text-caption">{{ webhookUrl(task) }}</code>
+                class="text-caption"
+              >{{ webhookUrl(task) }}</code>
               <span
                 v-else
-                class="text-grey">—</span>
+                class="text-grey"
+              >—</span>
             </td>
             <td>
               <v-switch
@@ -273,7 +284,8 @@
     <!-- Create Dialog -->
     <v-dialog
       v-model="showCreateDialog"
-      max-width="600">
+      max-width="600"
+    >
       <v-card title="New Task">
         <v-card-text>
           <v-select
@@ -283,7 +295,8 @@
           />
           <v-text-field
             v-model="newTask.label"
-            label="Label" />
+            label="Label"
+          />
           <option-fields
             v-if="optionDefs.length"
             v-model="newTask.options"
@@ -293,10 +306,15 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="showCreateDialog = false">Cancel</v-btn>
+          <v-btn @click="showCreateDialog = false">
+            Cancel
+          </v-btn>
           <v-btn
             color="primary"
-            @click="createTask">Create</v-btn>
+            @click="createTask"
+          >
+            Create
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -304,12 +322,14 @@
     <!-- Edit Dialog -->
     <v-dialog
       v-model="showEditDialog"
-      max-width="600">
+      max-width="600"
+    >
       <v-card title="Edit Task">
         <v-card-text>
           <v-text-field
             v-model="editTask.label"
-            label="Label" />
+            label="Label"
+          />
           <option-fields
             v-if="optionDefs.length"
             v-model="editTask.options"
@@ -319,10 +339,15 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="showEditDialog = false">Cancel</v-btn>
+          <v-btn @click="showEditDialog = false">
+            Cancel
+          </v-btn>
           <v-btn
             color="primary"
-            @click="saveEdit">Save</v-btn>
+            @click="saveEdit"
+          >
+            Save
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

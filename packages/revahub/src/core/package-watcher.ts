@@ -43,6 +43,7 @@ export class PackageWatcher {
       ignored: (path, stats) => {
         // Allow directories to be traversed
         if (stats?.isDirectory()) return false;
+
         // Only watch package.json files
         return basename(path) !== 'package.json';
       },

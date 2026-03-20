@@ -42,15 +42,19 @@
 
 <template>
   <div>
-    <h1 class="text-h4 mb-4">Settings</h1>
+    <h1 class="text-h4 mb-4">
+      Settings
+    </h1>
 
     <v-progress-linear
       v-if="loading"
-      indeterminate />
+      indeterminate
+    />
 
     <v-card
       v-else
-      max-width="600">
+      max-width="600"
+    >
       <v-card-text>
         <v-text-field
           v-model.number="port"
@@ -65,7 +69,8 @@
         <v-btn
           color="primary"
           :loading="saving"
-          @click="savePort">
+          @click="savePort"
+        >
           Save
         </v-btn>
       </v-card-actions>

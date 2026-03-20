@@ -59,17 +59,21 @@
 <template>
   <div>
     <div class="d-flex align-center mb-4">
-      <h1 class="text-h4">Task Runs</h1>
+      <h1 class="text-h4">
+        Task Runs
+      </h1>
       <v-spacer />
       <v-btn
         icon="mdi-refresh"
         variant="text"
-        @click="loadData" />
+        @click="loadData"
+      />
     </div>
 
     <v-progress-linear
       v-if="loading"
-      indeterminate />
+      indeterminate
+    />
 
     <v-card v-else>
       <v-table>
@@ -88,14 +92,18 @@
         <tbody>
           <tr
             v-for="run in runs"
-            :key="run.id">
-            <td class="text-mono">{{ run.id }}</td>
+            :key="run.id"
+          >
+            <td class="text-mono">
+              {{ run.id }}
+            </td>
             <td>{{ run.taskId }}</td>
             <td>{{ run.triggerType }}</td>
             <td>
               <v-chip
                 :color="statusColor(run.status)"
-                size="small">
+                size="small"
+              >
                 {{ run.status }}
               </v-chip>
             </td>
@@ -107,7 +115,8 @@
                 icon="mdi-text-box-outline"
                 size="small"
                 variant="text"
-                @click="viewLogs(run.id)" />
+                @click="viewLogs(run.id)"
+              />
             </td>
           </tr>
         </tbody>
@@ -117,20 +126,26 @@
     <!-- Per-run Logs Dialog -->
     <v-dialog
       v-model="showLogsDialog"
-      max-width="800">
+      max-width="800"
+    >
       <v-card :title="`Logs — ${selectedRunId}`">
         <v-card-text>
           <v-list
             v-if="runLogs.length"
-            density="compact">
+            density="compact"
+          >
             <v-list-item
               v-for="log in runLogs"
-              :key="log.id">
+              :key="log.id"
+            >
               <template #prepend>
                 <v-chip
                   class="mr-2"
                   :color="levelColor(log.level)"
-                  size="x-small">{{ log.level }}</v-chip>
+                  size="x-small"
+                >
+                  {{ log.level }}
+                </v-chip>
               </template>
               <v-list-item-title>{{ log.message }}</v-list-item-title>
               <v-list-item-subtitle>{{ new Date(log.timestamp).toLocaleString() }}</v-list-item-subtitle>
@@ -138,11 +153,16 @@
           </v-list>
           <p
             v-else
-            class="text-grey">No logs for this run</p>
+            class="text-grey"
+          >
+            No logs for this run
+          </p>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="showLogsDialog = false">Close</v-btn>
+          <v-btn @click="showLogsDialog = false">
+            Close
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

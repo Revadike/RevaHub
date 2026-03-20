@@ -177,9 +177,12 @@
   <div>
     <v-row
       align="center"
-      class="mb-4">
+      class="mb-4"
+    >
       <v-col cols="auto">
-        <h1 class="text-h4">Marketplace</h1>
+        <h1 class="text-h4">
+          Marketplace
+        </h1>
       </v-col>
       <v-spacer />
       <v-col cols="auto">
@@ -187,15 +190,21 @@
           class="mr-2"
           color="teal"
           variant="outlined"
-          @click="openImportDialog('local')">
-          <v-icon start>mdi-folder-open</v-icon>
+          @click="openImportDialog('local')"
+        >
+          <v-icon start>
+            mdi-folder-open
+          </v-icon>
           Import Local
         </v-btn>
         <v-btn
           color="purple"
           variant="outlined"
-          @click="openImportDialog('git')">
-          <v-icon start>mdi-git</v-icon>
+          @click="openImportDialog('git')"
+        >
+          <v-icon start>
+            mdi-git
+          </v-icon>
           Import Git
         </v-btn>
       </v-col>
@@ -213,34 +222,46 @@
 
     <v-progress-linear
       v-if="loading"
-      indeterminate />
+      indeterminate
+    />
 
     <v-row v-else>
       <v-col
         v-for="pkg in results"
         :key="pkg.name"
         cols="12"
-        md="4">
+        md="4"
+      >
         <v-card>
           <v-card-title>{{ pkg.name }}</v-card-title>
           <v-card-subtitle>
             <v-chip
               class="mr-2"
-              size="small">{{ packageType(pkg.name) }}</v-chip>
+              size="small"
+            >
+              {{ packageType(pkg.name) }}
+            </v-chip>
             <v-chip
               v-if="isInstalled(pkg.name)"
               class="mr-2"
               :color="sourceColors[getSource(pkg.name)]"
-              size="small">{{ getSource(pkg.name) }}</v-chip>
+              size="small"
+            >
+              {{ getSource(pkg.name) }}
+            </v-chip>
             v{{ pkg.version }}
             <template v-if="isInstalled(pkg.name)">
               <v-chip
                 class="ml-1"
                 color="success"
-                size="small">installed</v-chip>
+                size="small"
+              >
+                installed
+              </v-chip>
               <span
                 v-if="installedVersions.get(pkg.name) !== pkg.version"
-                class="ml-1 text-caption text-warning">
+                class="ml-1 text-caption text-warning"
+              >
                 (current: v{{ installedVersions.get(pkg.name) }})
               </span>
             </template>
@@ -279,14 +300,16 @@
 
     <p
       v-if="!loading && results.length === 0"
-      class="text-grey mt-4">
+      class="text-grey mt-4"
+    >
       No packages found on npm. Use Import Local or Import Git for development packages.
     </p>
 
     <!-- Import Dialog -->
     <v-dialog
       v-model="importDialog"
-      max-width="500">
+      max-width="500"
+    >
       <v-card>
         <v-card-title>
           {{ importMode === 'local' ? 'Import Local Package' : 'Import from Git' }}
@@ -313,12 +336,16 @@
           <v-spacer />
           <v-btn
             variant="text"
-            @click="importDialog = false">Cancel</v-btn>
+            @click="importDialog = false"
+          >
+            Cancel
+          </v-btn>
           <v-btn
             color="primary"
             :disabled="importMode === 'local' ? !importPath : !importUrl"
             :loading="importLoading"
-            @click="submitImport">
+            @click="submitImport"
+          >
             Import
           </v-btn>
         </v-card-actions>

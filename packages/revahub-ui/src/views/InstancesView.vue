@@ -172,19 +172,23 @@
 <template>
   <div>
     <div class="d-flex align-center mb-4">
-      <h1 class="text-h4">Module Instances</h1>
+      <h1 class="text-h4">
+        Module Instances
+      </h1>
       <v-spacer />
       <v-btn
         color="primary"
         prepend-icon="mdi-plus"
-        @click="showCreateDialog = true">
+        @click="showCreateDialog = true"
+      >
         New Instance
       </v-btn>
     </div>
 
     <v-progress-linear
       v-if="loading"
-      indeterminate />
+      indeterminate
+    />
 
     <v-card v-else>
       <v-table>
@@ -199,13 +203,15 @@
         <tbody>
           <tr
             v-for="inst in instances"
-            :key="inst.id">
+            :key="inst.id"
+          >
             <td>{{ inst.label }}</td>
             <td>{{ inst.moduleName }}</td>
             <td>
               <v-chip
                 :color="statusColor(inst.status)"
-                size="small">
+                size="small"
+              >
                 {{ inst.status }}
               </v-chip>
             </td>
@@ -260,7 +266,8 @@
 
     <v-dialog
       v-model="showCreateDialog"
-      max-width="600">
+      max-width="600"
+    >
       <v-card title="New Instance">
         <v-card-text>
           <v-select
@@ -270,7 +277,8 @@
           />
           <v-text-field
             v-model="newInstance.label"
-            label="Label" />
+            label="Label"
+          />
           <option-fields
             v-if="optionDefs.length"
             v-model="newInstance.options"
@@ -280,10 +288,15 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="showCreateDialog = false">Cancel</v-btn>
+          <v-btn @click="showCreateDialog = false">
+            Cancel
+          </v-btn>
           <v-btn
             color="primary"
-            @click="createInstance">Create</v-btn>
+            @click="createInstance"
+          >
+            Create
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -291,12 +304,14 @@
     <!-- Edit Dialog -->
     <v-dialog
       v-model="showEditDialog"
-      max-width="600">
+      max-width="600"
+    >
       <v-card title="Edit Instance">
         <v-card-text>
           <v-text-field
             v-model="editInstance.label"
-            label="Label" />
+            label="Label"
+          />
           <option-fields
             v-if="optionDefs.length"
             v-model="editInstance.options"
@@ -306,10 +321,15 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="showEditDialog = false">Cancel</v-btn>
+          <v-btn @click="showEditDialog = false">
+            Cancel
+          </v-btn>
           <v-btn
             color="primary"
-            @click="saveEdit">Save</v-btn>
+            @click="saveEdit"
+          >
+            Save
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -317,20 +337,26 @@
     <!-- Logs Dialog -->
     <v-dialog
       v-model="showLogsDialog"
-      max-width="800">
+      max-width="800"
+    >
       <v-card title="Instance Logs">
         <v-card-text>
           <v-list
             v-if="instanceLogs.length"
-            density="compact">
+            density="compact"
+          >
             <v-list-item
               v-for="log in instanceLogs"
-              :key="log.id">
+              :key="log.id"
+            >
               <template #prepend>
                 <v-chip
                   class="mr-2"
                   :color="levelColor(log.level)"
-                  size="x-small">{{ log.level }}</v-chip>
+                  size="x-small"
+                >
+                  {{ log.level }}
+                </v-chip>
               </template>
               <v-list-item-title>{{ log.message }}</v-list-item-title>
               <v-list-item-subtitle>{{ new Date(log.timestamp).toLocaleString() }}</v-list-item-subtitle>
@@ -338,11 +364,16 @@
           </v-list>
           <p
             v-else
-            class="text-grey">No logs</p>
+            class="text-grey"
+          >
+            No logs
+          </p>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="showLogsDialog = false">Close</v-btn>
+          <v-btn @click="showLogsDialog = false">
+            Close
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

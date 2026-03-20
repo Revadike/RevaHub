@@ -49,7 +49,8 @@
   <div>
     <template
       v-for="opt in sorted"
-      :key="opt.key">
+      :key="opt.key"
+    >
       <v-select
         v-if="opt.type === 'select'"
         item-title="label"
