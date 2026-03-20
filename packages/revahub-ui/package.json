@@ -10,17 +10,17 @@
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
-    "vue": "^3.5.0",
-    "vue-router": "^4.5.0",
-    "vuetify": "^3.8.0"
+    "vue": "^3.5.30",
+    "vue-router": "^5.0.4",
+    "vuetify": "^4.0.3"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.2.0",
+    "@vitejs/plugin-vue": "^6.0.5",
     "revahub-types": "*",
-    "sass": "^1.89.0",
-    "typescript": "^5.8.0",
-    "vite": "^6.3.0",
-    "vite-plugin-vuetify": "^2.1.0",
-    "vue-tsc": "^2.2.0"
+    "sass": "^1.98.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.1",
+    "vite-plugin-vuetify": "^2.1.3",
+    "vue-tsc": "^3.2.6"
   }
 }

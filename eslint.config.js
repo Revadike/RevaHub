@@ -13,13 +13,13 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  ...vue.configs['flat/base'],
-  ...vuetify.configs['flat/base'],
+  ...vue.configs['flat/recommended'],
   {
     plugins: {
       'import': importPlugin,
       '@stylistic': stylistic,
-      tsdoc
+      tsdoc,
+      vuetify
     },
     languageOptions: {
       ecmaVersion: 2022,

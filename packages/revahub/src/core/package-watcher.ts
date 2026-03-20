@@ -35,12 +35,17 @@ export class PackageWatcher {
   start() {
     if (this.watcher) return;
 
-    // Watch for package.json files in watched directories
-    const patterns = this.watchedDirs.map(dir => join(dir, '*', 'package.json'));
-
-    this.watcher = watch(patterns, {
+    // Watch directories directly (Chokidar v5 no longer supports glob patterns)
+    this.watcher = watch(this.watchedDirs, {
       persistent: true,
       ignoreInitial: true,
+      depth: 1,
+      ignored: (path, stats) => {
+        // Allow directories to be traversed
+        if (stats?.isDirectory()) return false;
+        // Only watch package.json files
+        return basename(path) !== 'package.json';
+      },
       awaitWriteFinish: {
         stabilityThreshold: 500,
         pollInterval: 100
