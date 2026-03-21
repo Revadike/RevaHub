@@ -57,10 +57,10 @@ export class PackageWatcher {
     this.watcher.on('change', (path: string) => this.handleChange(path));
     this.watcher.on('unlink', (path: string) => this.handleUnlink(path));
     this.watcher.on('error', (err: unknown) => {
-      console.error('[PackageWatcher] Error:', err);
+      console.error('Error:', err);
     });
 
-    console.info(`[PackageWatcher] Watching: ${this.watchedDirs.join(', ')}`);
+    console.info(`Watching: ${this.watchedDirs.join(', ')}`);
   }
 
   /**

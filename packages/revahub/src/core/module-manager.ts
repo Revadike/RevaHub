@@ -10,7 +10,9 @@ import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from 'revah
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const WORKER_PATH = join(__dirname, '..', 'worker', 'module-worker.js');
+const isDevMode = __dirname.includes('/src') || __dirname.includes('\\src');
+const workerExt = isDevMode ? 'ts' : 'js';
+const WORKER_PATH = join(__dirname, '..', 'worker', `module-worker.${workerExt}`);
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 interface ManagedInstance {
@@ -46,14 +48,14 @@ export class ModuleManager {
     for (const row of rows) {
       // Skip if status is 'missing' (package not found)
       if (row.status === 'missing') {
-        console.warn(`[ModuleManager] Skipping instance "${row.id}" — package "${row.moduleName}" missing`);
+        console.warn(`Skipping instance "${row.id}" — package "${row.moduleName}" missing`);
         continue;
       }
 
       try {
         await this.startInstance(row.id);
       } catch (err) {
-        console.error(`[ModuleManager] Failed to start instance "${row.id}":`, err);
+        console.error(`Failed to start instance "${row.id}":`, err);
       }
     }
   }
@@ -106,7 +108,8 @@ export class ModuleManager {
       }
     }
 
-    const worker = new Worker(WORKER_PATH, {
+    // In dev mode, we need tsx to transpile TypeScript files in workers
+    const workerOptions: ConstructorParameters<typeof Worker>[1] = {
       workerData: {
         modulePath,
         options,
@@ -114,7 +117,14 @@ export class ModuleManager {
         moduleName: row.moduleName,
         connectedInstances
       }
-    });
+    };
+
+    // Use tsx loader for TypeScript in dev mode
+    if (isDevMode) {
+      workerOptions.execArgv = ['--import', 'tsx'];
+    }
+
+    const worker = new Worker(WORKER_PATH, workerOptions);
 
     managed.worker = worker;
 
@@ -127,7 +137,7 @@ export class ModuleManager {
     });
 
     worker.on('error', (err) => {
-      console.error(`[ModuleManager] Worker error for instance "${instanceId}":`, err.message);
+      console.error(`Worker error for instance "${instanceId}":`, err.message);
     });
 
     // Wait for ready or error
@@ -412,11 +422,11 @@ export class ModuleManager {
     const [row] = await db.select().from(moduleInstances)
       .where(eq(moduleInstances.id, instanceId));
     if (row?.autoRestart && row.enabled) {
-      console.info(`[ModuleManager] Auto-restarting instance "${instanceId}"`);
+      console.info(`Auto-restarting instance "${instanceId}"`);
       try {
         await this.startInstance(instanceId);
       } catch (err) {
-        console.error(`[ModuleManager] Auto-restart failed for "${instanceId}":`, err);
+        console.error(`Auto-restart failed for "${instanceId}":`, err);
       }
     }
   }

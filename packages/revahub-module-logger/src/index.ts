@@ -49,7 +49,7 @@ class Logger {
       );
     } catch {
       // Fallback to console if DB write fails
-      console.error(`[Logger] Failed to write log to database: ${message}`);
+      console.error(`Failed to write log to database: ${message}`);
     }
   }
 

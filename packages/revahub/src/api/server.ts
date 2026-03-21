@@ -37,6 +37,8 @@ export interface ServerDeps {
 export async function createServer(deps: ServerDeps) {
   const app = Fastify({ logger: true });
 
+  // TODO: Implement global error handler via setErrorHandler?
+
   await app.register(fastifyWebsocket);
 
   // API routes

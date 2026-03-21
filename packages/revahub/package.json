@@ -33,8 +33,7 @@
     "node-cron": "^4.2.1",
     "revahub-module-database": "*",
     "revahub-module-logger": "*",
-    "revahub-task-cleanup-logs": "*",
-    "zod": "^4.3.6"
+    "revahub-task-cleanup-logs": "*"
   },
   "devDependencies": {
     "@types/node-cron": "^3.0.11",

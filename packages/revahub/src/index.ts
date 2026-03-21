@@ -175,6 +175,14 @@ export async function start() {
   const nativePackages = getNativePackages();
   console.info(`Detected ${nativePackages.size} native packages`);
 
+  console.info('Scanning packages...');
+  await scanAllPackages({
+    workingDir,
+    localPackagesDir,
+    nativePackages
+  });
+
+  // Register native packages AFTER scanAllPackages (which clears the registry)
   for (const pkgName of nativePackages) {
     try {
       const pkgPath = await resolvePackagePath(pkgName, workingDir);
@@ -184,13 +192,6 @@ export async function start() {
       console.warn(`Failed to register native package ${pkgName}:`, err);
     }
   }
-
-  console.info('Scanning packages...');
-  await scanAllPackages({
-    workingDir,
-    localPackagesDir,
-    nativePackages
-  });
 
   const registry = getPackageRegistry();
   console.info(`Found ${registry.size} packages`);

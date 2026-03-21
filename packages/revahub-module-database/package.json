@@ -13,14 +13,14 @@
     "description": "Provides SQL query access. Uses embedded PGlite by default, or connects to external PostgreSQL when connectionString is provided.",
     "options": [
       {
-        "name": "connectionString",
+        "key": "connectionString",
         "label": "Connection String",
         "description": "PostgreSQL connection string (e.g., postgresql://user:pass@host:5432/db). Leave empty to use embedded PGlite.",
         "type": "string",
         "required": false
       },
       {
-        "name": "schemaPrefix",
+        "key": "schemaPrefix",
         "label": "Schema Prefix",
         "description": "Optional prefix for schema isolation (default: none)",
         "type": "string",

@@ -67,7 +67,7 @@ export class TaskRunner {
       // Check if package exists
       const pkg = getPackage(task.taskName);
       if (!pkg) {
-        console.warn(`[TaskRunner] Skipping task "${task.id}" — package "${task.taskName}" missing`);
+        console.warn(`Skipping task "${task.id}" — package "${task.taskName}" missing`);
         continue;
       }
 
@@ -86,7 +86,7 @@ export class TaskRunner {
    */
   private scheduleCron(taskId: string, cronExpression: string) {
     if (!cron.validate(cronExpression)) {
-      console.error(`[TaskRunner] Invalid cron expression "${cronExpression}" for task "${taskId}"`);
+      console.error(`Invalid cron expression "${cronExpression}" for task "${taskId}"`);
       return;
     }
 

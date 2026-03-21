@@ -22,6 +22,7 @@ class Database implements IDatabaseInstance {
     if (this.useExternal) {
       // External PostgreSQL mode
       this.pool = new pg.Pool({ connectionString });
+      // TODO: Add configurable pool options (max, idleTimeoutMillis, connectionTimeoutMillis)?
 
       ctx.onDestroy(async () => {
         await this.pool?.end();

@@ -107,7 +107,7 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
         try {
           await deps.moduleManager.startInstance(id);
         } catch (err) {
-          console.error(`[API] Failed to start new instance "${id}":`, err);
+          console.error(`Failed to start new instance "${id}":`, err);
         }
       }
 
