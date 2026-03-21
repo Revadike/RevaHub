@@ -18,6 +18,7 @@ import { TaskRunner } from './core/task-runner.js';
 import { initDatabase, getDatabase, closeDatabase } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
 import { moduleInstances, tasks, settings } from './db/schema.js';
+import { isDev } from './utils/environment.js';
 import { getNativePackages, getNativeModules } from './utils/native-packages.js';
 
 /**
@@ -172,18 +173,11 @@ export async function start() {
   // TODO: Seed this data instead
   await ensureDefaultSettings();
 
-  // Check if we're in dev mode by checking if we're running from src/ or dist/
-  // When running with tsx, __dirname will be something like .../packages/revahub/src
-  // When running compiled code, __dirname will be .../packages/revahub/dist
-  // TODO: Find better solution
-  const currentDir = import.meta.dirname ?? '';
-  const isDevMode = currentDir.includes('/src') || currentDir.includes('\\src');
-
   // Use port 3001 in dev mode (ignore database setting), port 3000 in production
-  const port = isDevMode ? 3001 : (await getSetting<number>('port') ?? 3000);
+  const port = isDev ? 3001 : (await getSetting<number>('port') ?? 3000);
   const localPackagesDir = await getSetting<string>('localPackagesDir') ?? null;
 
-  if (isDevMode) {
+  if (isDev) {
     console.info(`Running in dev mode on port ${port} (Vite should be on port 3000)`);
   }
 
@@ -255,18 +249,40 @@ export async function start() {
     packageWatcher
   });
 
+  let isShuttingDown = false;
+
   const shutdown = async () => {
+    if (isShuttingDown) {
+      return;
+    }
+
     console.info('Shutting down...');
-    packageWatcher.stop();
-    await taskRunner.shutdown();
-    await moduleManager.shutdownAll();
-    await server.close();
-    await closeDatabase();
-    process.exit(0);
+    isShuttingDown = true;
+
+    const shutdownTimeout = setTimeout(() => {
+      console.warn('Shutdown timeout exceeded, forcing exit');
+      process.exit(1);
+    }, 3000);
+
+    try {
+      packageWatcher.stop();
+      await taskRunner.shutdown();
+      await moduleManager.shutdownAll();
+      await server.close();
+      await closeDatabase();
+    } catch (err) {
+      console.error('Error during shutdown:', err);
+    } finally {
+      if (shutdownTimeout) clearTimeout(shutdownTimeout);
+
+      process.exit(0);
+    }
   };
 
-  process.on('SIGTERM', () => void shutdown());
-  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+  process.on('SIGBREAK', shutdown);
+  process.on('SIGUSR2', shutdown);
 
   await server.listen({ port, host: '0.0.0.0' });
   console.info(`Server running on http://localhost:${port}`);

@@ -17,6 +17,7 @@ import { registerWebhookRoutes } from './routes/webhooks.js';
 import type { ModuleManager } from '../core/module-manager.js';
 import type { PackageWatcher } from '../core/package-watcher.js';
 import type { TaskRunner } from '../core/task-runner.js';
+import { isDev } from '../utils/environment.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,7 +38,12 @@ export interface ServerDeps {
  * @returns Configured Fastify server instance
  */
 export async function createServer(deps: ServerDeps) {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: true,
+    // Force close connections immediately on shutdown in dev mode
+    // This prevents "port already in use" errors during hot reload
+    forceCloseConnections: isDev
+  });
 
   // TODO: Implement global error handler via setErrorHandler?
 
@@ -63,8 +69,10 @@ export async function createServer(deps: ServerDeps) {
   registerLogStreamRoutes(app);
 
   // Serve pre-built Vue SPA (production mode only)
+  // In development, Vite serves the UI on port 3000 with HMR
   const uiDir = join(__dirname, '..', 'ui');
-  if (existsSync(uiDir)) {
+
+  if (!isDev && existsSync(uiDir)) {
     await app.register(fastifyStatic, {
       root: uiDir,
       prefix: '/',

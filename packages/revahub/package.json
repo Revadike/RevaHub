@@ -19,7 +19,7 @@
     "build": "tsc && npm run copy:migrations && npm run build:ui",
     "build:ui": "npm run build -w revahub-ui && node -e \"const{cpSync}=require('fs');cpSync('../revahub-ui/dist','dist/ui',{recursive:true})\"",
     "copy:migrations": "node -e \"const{cpSync}=require('fs');cpSync('src/db/migrations','dist/db/migrations',{recursive:true})\"",
-    "dev": "tsx watch src/cli.ts",
+    "dev": "cross-env NODE_ENV=development tsx watch --clear-screen=false src/cli.ts",
     "start": "node dist/cli.js"
   },
   "dependencies": {
@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@types/node-cron": "^3.0.11",
+    "cross-env": "^7.0.3",
     "drizzle-kit": "^0.18.1",
     "revahub-types": "*",
     "tsx": "^4.21.0"

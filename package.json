@@ -8,7 +8,7 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "build:ui": "npm run build:ui -w revahub",
-    "dev": "concurrently -k -n api,ui \"npm run dev -w revahub\" \"npm run dev -w revahub-ui\"",
+    "dev": "concurrently -k -n api,ui \"npm run dev:api\" \"npm run dev:ui\"",
     "dev:api": "npm run dev -w revahub",
     "dev:ui": "npm run dev -w revahub-ui",
     "start": "node packages/revahub/dist/cli.js",
