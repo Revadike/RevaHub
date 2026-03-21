@@ -15,7 +15,7 @@ import type {
 
 import { CoreEventBus } from './event-bus.js';
 import { ModuleManager } from './module-manager.js';
-import { getPackage } from './package-scanner.js';
+import type { PackageScanner } from './package-scanner.js';
 import { getDatabase } from '../db/index.js';
 import { tasks, taskRuns } from '../db/schema.js';
 
@@ -39,6 +39,7 @@ export class TaskRunner {
   constructor(
     private eventBus: CoreEventBus,
     private moduleManager: ModuleManager,
+    private scanner: PackageScanner,
     private workingDir: string
   ) {}
 
@@ -67,7 +68,7 @@ export class TaskRunner {
 
     for (const task of allTasks) {
       // Check if package exists
-      const pkg = getPackage(task.taskName);
+      const pkg = this.scanner.getPackage(task.taskName);
       if (!pkg) {
         console.warn(`Skipping task "${task.id}" — package "${task.taskName}" missing`);
         continue;
@@ -157,7 +158,7 @@ export class TaskRunner {
     }
 
     // Check if package exists in registry
-    const pkg = getPackage(task.taskName);
+    const pkg = this.scanner.getPackage(task.taskName);
     if (!pkg) {
       throw new Error(`Task package "${task.taskName}" not found`);
     }

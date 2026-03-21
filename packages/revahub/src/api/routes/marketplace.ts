@@ -5,7 +5,6 @@ import { join, resolve as resolvePath, basename } from 'node:path';
 
 import type { FastifyInstance } from 'fastify';
 
-import { getPackage, registerPackage, deregisterPackage, scanPackage } from '../../core/package-scanner.js';
 import type { ServerDeps } from '../server.js';
 
 /** Strict validation pattern for npm package names in the revahub namespace. */
@@ -114,7 +113,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       await npmRun(['install', packageName], deps.workingDir);
       // npm packages are installed to node_modules
       const packagePath = join(deps.workingDir, 'node_modules', packageName);
-      const entry = await registerPackage(packagePath, 'npm', deps.nativePackages);
+      const entry = await deps.scanner.registerPackage(packagePath, 'npm');
       if (!entry) {
         return reply.code(400).send({ error: 'Package does not contain valid revahub metadata' });
       }
@@ -133,8 +132,8 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       return reply.code(400).send({ error: 'Invalid package name' });
     }
 
-    const pkg = getPackage(packageName);
-    if (pkg?.source === 'native') {
+    const pkg = deps.scanner.getPackage(packageName);
+    if (pkg?.native) {
       return reply.code(403).send({ error: 'Cannot uninstall native package' });
     }
 
@@ -151,7 +150,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
         await npmRun(['uninstall', packageName], deps.workingDir);
       }
 
-      deregisterPackage(packageName);
+      deps.scanner.deregisterPackage(packageName);
       return { success: true };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Uninstallation failed' });
@@ -166,7 +165,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       return reply.code(400).send({ error: 'Invalid package name' });
     }
 
-    const pkg = getPackage(packageName);
+    const pkg = deps.scanner.getPackage(packageName);
     if (!pkg) {
       return reply.code(404).send({ error: 'Package not found' });
     }
@@ -186,7 +185,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       }
 
       // Re-scan to update registry
-      const entry = await registerPackage(packagePath, pkg.source, deps.nativePackages);
+      const entry = await deps.scanner.registerPackage(packagePath, pkg.source);
       return { success: true, version: entry?.version };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Update failed' });
@@ -207,7 +206,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
     }
 
     // Scan to validate
-    const scanned = await scanPackage(absPath);
+    const scanned = await deps.scanner.scanPackage(absPath);
     if (!scanned) {
       return reply.code(400).send({ error: 'Invalid revahub package at path' });
     }
@@ -222,7 +221,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       }
 
       await symlink(absPath, linkPath, 'dir');
-      const entry = await registerPackage(linkPath, 'local', deps.nativePackages);
+      const entry = await deps.scanner.registerPackage(linkPath, 'local');
       return { success: true, package: entry };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Import failed' });
@@ -251,13 +250,13 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       await gitClone(url, cloneDir);
 
       // Validate after clone
-      const scanned = await scanPackage(cloneDir);
+      const scanned = await deps.scanner.scanPackage(cloneDir);
       if (!scanned) {
         await rm(cloneDir, { recursive: true, force: true });
         return reply.code(400).send({ error: 'Cloned repo is not a valid revahub package' });
       }
 
-      const entry = await registerPackage(cloneDir, 'git', deps.nativePackages);
+      const entry = await deps.scanner.registerPackage(cloneDir, 'git');
       return { success: true, package: entry };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Git import failed' });
@@ -268,7 +267,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
   app.post<{ Body: { packageName: string } }>('/marketplace/pull', async (req, reply) => {
     const { packageName } = req.body;
 
-    const pkg = getPackage(packageName);
+    const pkg = deps.scanner.getPackage(packageName);
     if (!pkg) {
       return reply.code(404).send({ error: 'Package not found' });
     }
@@ -282,7 +281,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       await gitPull(pkgDir);
 
       // Re-scan
-      const entry = await registerPackage(pkgDir, 'git', deps.nativePackages);
+      const entry = await deps.scanner.registerPackage(pkgDir, 'git');
       return { success: true, version: entry?.version };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Pull failed' });
@@ -293,7 +292,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
   app.post<{ Body: { packageName: string } }>('/marketplace/remove-local', async (req, reply) => {
     const { packageName } = req.body;
 
-    const pkg = getPackage(packageName);
+    const pkg = deps.scanner.getPackage(packageName);
     if (!pkg) {
       return reply.code(404).send({ error: 'Package not found' });
     }
@@ -308,7 +307,7 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
         await rm(pkgDir, { recursive: true, force: true });
       }
 
-      deregisterPackage(packageName);
+      deps.scanner.deregisterPackage(packageName);
       return { success: true };
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Remove failed' });
@@ -327,9 +326,9 @@ export function registerMarketplaceRoutes(app: FastifyInstance, deps: ServerDeps
       for (const entry of entries) {
         if (entry.isDirectory() || entry.isSymbolicLink()) {
           const pkgPath = join(packagesDir, entry.name);
-          const scanned = await scanPackage(pkgPath);
+          const scanned = await deps.scanner.scanPackage(pkgPath);
           if (scanned) {
-            const registered = getPackage(scanned.name);
+            const registered = deps.scanner.getPackage(scanned.name);
             packages.push({
               name: scanned.name,
               version: scanned.version,

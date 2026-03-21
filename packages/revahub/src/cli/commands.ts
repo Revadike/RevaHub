@@ -2,8 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { scanPackage, registerPackage, deregisterPackage } from '../core/package-scanner.js';
-import { getNativePackages } from '../utils/native-packages.js';
+import type { PackageScanner } from '../core/package-scanner.js';
 
 /**
  * Runs an npm command with array arguments to prevent shell injection.
@@ -230,13 +229,13 @@ export interface PackageCommandOptions {
  * Installs a package from npm.
  *
  * @param packageName - Full package name to install
+ * @param scanner - PackageScanner instance
  * @param options - Installation options
- * @param nativePackages - Set of native package names
  */
 export async function installPackage(
   packageName: string,
-  options: PackageCommandOptions,
-  nativePackages: Set<string>
+  scanner: PackageScanner,
+  options: PackageCommandOptions
 ): Promise<void> {
   const { workingDir, version } = options;
 
@@ -258,7 +257,7 @@ export async function installPackage(
 
   // Validate the installed package
   const packageDir = join(workingDir, 'node_modules', packageName);
-  const scanned = await scanPackage(packageDir);
+  const scanned = await scanner.scanPackage(packageDir);
 
   if (!scanned) {
     // Rollback installation
@@ -267,7 +266,7 @@ export async function installPackage(
   }
 
   // Register in the in-memory registry
-  await registerPackage(packageDir, 'npm', nativePackages);
+  await scanner.registerPackage(packageDir, 'npm');
 
   console.info(`✓ Installed ${packageName} v${scanned.version}`);
 }
@@ -276,18 +275,18 @@ export async function installPackage(
  * Uninstalls a package.
  *
  * @param packageName - Full package name to uninstall
+ * @param scanner - PackageScanner instance
  * @param options - Uninstallation options
- * @param nativePackages - Set of native package names
  */
 export async function uninstallPackage(
   packageName: string,
-  options: PackageCommandOptions,
-  nativePackages: Set<string>
+  scanner: PackageScanner,
+  options: PackageCommandOptions
 ): Promise<void> {
   const { workingDir } = options;
 
   // Check if it's a native package
-  if (nativePackages.has(packageName)) {
+  if (scanner.isNativePackage(packageName)) {
     throw new Error(`Cannot uninstall native package "${packageName}"`);
   }
 
@@ -297,7 +296,7 @@ export async function uninstallPackage(
   await npmRun(['uninstall', packageName], workingDir);
 
   // Remove from registry
-  deregisterPackage(packageName);
+  scanner.deregisterPackage(packageName);
 
   console.info(`✓ Uninstalled ${packageName}`);
 }
@@ -307,21 +306,22 @@ export async function uninstallPackage(
  *
  * @param type - Package type
  * @param name - Short package name
+ * @param scanner - PackageScanner instance
  * @param workingDir - Working directory
  */
 export async function cliInstallPackage(
   type: 'module' | 'task',
   name: string,
+  scanner: PackageScanner,
   workingDir: string
 ): Promise<void> {
   const packageName = resolvePackageName(type, name);
-  const nativePackages = getNativePackages();
 
-  await installPackage(packageName, { workingDir }, nativePackages);
+  await installPackage(packageName, scanner, { workingDir });
 
   // Look up the installed package info
   const packageDir = join(workingDir, 'node_modules', packageName);
-  const scanned = await scanPackage(packageDir);
+  const scanned = await scanner.scanPackage(packageDir);
 
   if (!scanned) {
     return;
@@ -345,17 +345,18 @@ export async function cliInstallPackage(
  *
  * @param type - Package type
  * @param name - Short package name
+ * @param scanner - PackageScanner instance
  * @param workingDir - Working directory
  */
 export async function cliUninstallPackage(
   type: 'module' | 'task',
   name: string,
+  scanner: PackageScanner,
   workingDir: string
 ): Promise<void> {
   const packageName = resolvePackageName(type, name);
-  const nativePackages = getNativePackages();
 
-  await uninstallPackage(packageName, { workingDir }, nativePackages);
+  await uninstallPackage(packageName, scanner, { workingDir });
 
   console.info('');
   console.info('Note: Associated module instances or task configurations');

@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from 'revahub-types';
 
 import { CoreEventBus } from './event-bus.js';
-import { getPackage } from './package-scanner.js';
+import type { PackageScanner } from './package-scanner.js';
 import { getDatabase, getPGlite } from '../db/index.js';
 import { moduleInstances } from '../db/schema.js';
 
@@ -36,6 +36,7 @@ export class ModuleManager {
 
   constructor(
     private eventBus: CoreEventBus,
+    private scanner: PackageScanner,
     private workingDir: string
   ) {}
 
@@ -76,7 +77,7 @@ export class ModuleManager {
     }
 
     // Check if module exists in registry
-    const pkg = getPackage(row.moduleName);
+    const pkg = this.scanner.getPackage(row.moduleName);
     if (!pkg) {
       await db.update(moduleInstances).set({ status: 'missing' })
         .where(eq(moduleInstances.id, instanceId));

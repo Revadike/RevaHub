@@ -3,7 +3,6 @@ import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
-import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import { getDatabase } from '../../db/index.js';
 import { moduleInstances } from '../../db/schema.js';
 import type { ServerDeps } from '../server.js';
@@ -17,7 +16,7 @@ import type { ServerDeps } from '../server.js';
 export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
   // List all modules (from package registry)
   app.get('/modules', async () => {
-    const registry = getPackageRegistry();
+    const registry = deps.scanner.getRegistry();
     const modules = [];
     for (const entry of registry.values()) {
       if (entry.type === 'module') {
@@ -35,7 +34,7 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
 
   // Get a single module
   app.get<{ Params: { name: string } }>('/modules/:name', async (req, reply) => {
-    const pkg = getPackage(req.params.name);
+    const pkg = deps.scanner.getPackage(req.params.name);
     if (!pkg || pkg.type !== 'module') {
       return reply.code(404).send({ error: 'Module not found' });
     }
@@ -52,8 +51,8 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
   // Get option definitions for a module
   app.get<{ Params: { name: string } }>('/modules/:name/options', async (req, reply) => {
     try {
-      const packageDir = await resolvePackagePath(req.params.name, deps.workingDir);
-      const scanned = await scanPackage(packageDir);
+      const packageDir = await deps.scanner.resolvePackagePath(req.params.name, deps.workingDir);
+      const scanned = await deps.scanner.scanPackage(packageDir);
       if (!scanned) {
         return reply.code(404).send({ error: 'Module package not found' });
       }
@@ -96,7 +95,7 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
       const { moduleName, label, options = {}, enabled = true } = req.body;
 
       // Check module exists in registry
-      const pkg = getPackage(moduleName);
+      const pkg = deps.scanner.getPackage(moduleName);
       if (!pkg || pkg.type !== 'module') {
         return reply.code(400).send({ error: 'Module not found' });
       }
@@ -144,8 +143,8 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
     }
 
     // Prevent deleting native default instances
-    const pkg = getPackage(existing.moduleName);
-    if (pkg?.source === 'native') {
+    const pkg = deps.scanner.getPackage(existing.moduleName);
+    if (pkg?.native) {
       return reply.code(403).send({ error: 'Cannot delete native module default instance' });
     }
 

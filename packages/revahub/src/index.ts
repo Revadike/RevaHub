@@ -2,24 +2,18 @@ import { mkdir, writeFile, access } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { eq } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 
 import { createServer } from './api/server.js';
 import { CoreEventBus } from './core/event-bus.js';
 import { ModuleManager } from './core/module-manager.js';
-import {
-  scanAllPackages,
-  getPackageRegistry,
-  registerPackage,
-  resolvePackagePath
-} from './core/package-scanner.js';
+import { PackageScanner } from './core/package-scanner.js';
 import { PackageWatcher } from './core/package-watcher.js';
 import { TaskRunner } from './core/task-runner.js';
 import { initDatabase, getDatabase, closeDatabase } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
 import { moduleInstances, tasks, settings } from './db/schema.js';
 import { isDev } from './utils/environment.js';
-import { getNativePackages, getNativeModules } from './utils/native-packages.js';
 
 /**
  * Resolves the working directory for RevaHub data and packages.
@@ -88,13 +82,23 @@ async function ensureDefaultSettings() {
 }
 
 /**
- * Ensures default instances exist for all native modules.
+ * Cleans up legacy native instance IDs and ensures default instances exist for all native modules.
  *
- * @param nativeModules - Array of native module package names
+ * @param scanner - PackageScanner instance
  */
-async function ensureNativeModuleInstances(nativeModules: string[]) {
+async function ensureNativeModuleInstances(scanner: PackageScanner) {
   const db = getDatabase();
-  const registry = getPackageRegistry();
+  const registry = scanner.getRegistry();
+  const nativeModules = scanner.getNativeModules();
+
+  // Delete old __native_*__ entries (legacy format)
+  const oldEntries = await db.select().from(moduleInstances)
+    .where(like(moduleInstances.id, '__native_%'));
+
+  for (const entry of oldEntries) {
+    await db.delete(moduleInstances).where(eq(moduleInstances.id, entry.id));
+    console.info(`Removed legacy instance: ${entry.id}`);
+  }
 
   for (const moduleName of nativeModules) {
     const pkg = registry.get(moduleName);
@@ -117,23 +121,69 @@ async function ensureNativeModuleInstances(nativeModules: string[]) {
         enabled: true,
         autoRestart: true
       });
+      console.info(`Created native module instance: ${defaultId}`);
     }
   }
 }
 
 /**
- * Marks module instances and tasks as missing if their packages are not found.
+ * Ensures default task configs exist for all native tasks.
+ *
+ * @param scanner - PackageScanner instance
  */
-async function flagMissingPackages() {
+async function ensureNativeTaskConfigs(scanner: PackageScanner) {
   const db = getDatabase();
-  const registry = getPackageRegistry();
+  const registry = scanner.getRegistry();
+  const nativeTasks = scanner.getNativeTasks();
+
+  for (const taskName of nativeTasks) {
+    const pkg = registry.get(taskName);
+    if (!pkg || pkg.type !== 'task') continue;
+
+    const shortName = taskName.replace('revahub-task-', '').replaceAll(/-/g, '_');
+    const defaultId = `task_${shortName}`;
+
+    const [existing] = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.id, defaultId));
+
+    if (!existing) {
+      await db.insert(tasks).values({
+        id: defaultId,
+        taskName,
+        label: pkg.label,
+        options: {},
+        enabled: true
+      });
+      console.info(`Created native task config: ${defaultId}`);
+    }
+  }
+}
+
+/**
+ * Updates module instance and task statuses based on package availability.
+ * Marks instances as 'missing' if their package is not found,
+ * and recovers them to 'stopped' if packages are found again.
+ */
+async function flagMissingPackages(scanner: PackageScanner) {
+  const db = getDatabase();
+  const registry = scanner.getRegistry();
 
   const allInstances = await db.select().from(moduleInstances);
   for (const instance of allInstances) {
-    if (!registry.has(instance.moduleName)) {
+    const packageExists = registry.has(instance.moduleName);
+
+    if (!packageExists && instance.status !== 'missing') {
       await db
         .update(moduleInstances)
         .set({ status: 'missing' })
+        .where(eq(moduleInstances.id, instance.id));
+    } else if (packageExists && instance.status === 'missing') {
+      // Recover from missing status when package is found again
+      await db
+        .update(moduleInstances)
+        .set({ status: 'stopped' })
         .where(eq(moduleInstances.id, instance.id));
     }
   }
@@ -181,37 +231,27 @@ export async function start() {
     console.info(`Running in dev mode on port ${port} (Vite should be on port 3000)`);
   }
 
-  const nativePackages = getNativePackages();
+  const scanner = await PackageScanner.create();
+  const nativePackages = scanner.getNativePackages();
   console.info(`Detected ${nativePackages.size} native packages`);
 
   console.info('Scanning packages...');
-  await scanAllPackages({
+  await scanner.scanAll({
     workingDir,
-    localPackagesDir,
-    nativePackages
+    localPackagesDir
   });
+  await scanner.ensureNativePackages(workingDir);
 
-  // Register native packages AFTER scanAllPackages (which clears the registry)
-  for (const pkgName of nativePackages) {
-    try {
-      const pkgPath = await resolvePackagePath(pkgName, workingDir);
-      await registerPackage(pkgPath, 'npm', nativePackages);
-      console.info(`Registered native package: ${pkgName}`);
-    } catch (err) {
-      console.warn(`Failed to register native package ${pkgName}:`, err);
-    }
-  }
-
-  const registry = getPackageRegistry();
+  const registry = scanner.getRegistry();
   console.info(`Found ${registry.size} packages`);
 
-  await ensureNativeModuleInstances(getNativeModules());
-
-  await flagMissingPackages();
+  await ensureNativeModuleInstances(scanner);
+  await ensureNativeTaskConfigs(scanner);
+  await flagMissingPackages(scanner);
 
   const eventBus = new CoreEventBus();
-  const moduleManager = new ModuleManager(eventBus, workingDir);
-  const taskRunner = new TaskRunner(eventBus, moduleManager, workingDir);
+  const moduleManager = new ModuleManager(eventBus, scanner, workingDir);
+  const taskRunner = new TaskRunner(eventBus, moduleManager, scanner, workingDir);
 
   try {
     await moduleManager.startAll();
@@ -224,18 +264,20 @@ export async function start() {
   const packageWatcher = new PackageWatcher({
     workingDir,
     localPackagesDir,
-    nativePackages,
+    scanner,
     onPackageAdded: async (name) => {
       console.info(`Package added: ${name}`);
-      await scanAllPackages({ workingDir, localPackagesDir, nativePackages });
+      await scanner.scanAll({ workingDir, localPackagesDir });
+      await scanner.ensureNativePackages(workingDir);
     },
     onPackageChanged: async (name) => {
       console.info(`Package changed: ${name}`);
-      await scanAllPackages({ workingDir, localPackagesDir, nativePackages });
+      await scanner.scanAll({ workingDir, localPackagesDir });
+      await scanner.ensureNativePackages(workingDir);
     },
     onPackageRemoved: async (name) => {
       console.info(`Package removed: ${name}`);
-      await flagMissingPackages();
+      await flagMissingPackages(scanner);
     }
   });
 
@@ -245,7 +287,7 @@ export async function start() {
     moduleManager,
     taskRunner,
     workingDir,
-    nativePackages,
+    scanner,
     packageWatcher
   });
 

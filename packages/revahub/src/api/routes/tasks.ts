@@ -3,7 +3,6 @@ import { randomBytes } from 'node:crypto';
 import { eq, desc } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
-import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import { getDatabase } from '../../db/index.js';
 import { tasks, taskRuns } from '../../db/schema.js';
 import type { ServerDeps } from '../server.js';
@@ -17,7 +16,7 @@ import type { ServerDeps } from '../server.js';
 export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
   // List all task packages (from registry)
   app.get('/task-packages', async () => {
-    const registry = getPackageRegistry();
+    const registry = deps.scanner.getRegistry();
     const taskPackages = [];
     for (const entry of registry.values()) {
       if (entry.type === 'task') {
@@ -35,7 +34,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
 
   // Get a single task package
   app.get<{ Params: { name: string } }>('/task-packages/:name', async (req, reply) => {
-    const pkg = getPackage(req.params.name);
+    const pkg = deps.scanner.getPackage(req.params.name);
     if (!pkg || pkg.type !== 'task') {
       return reply.code(404).send({ error: 'Task package not found' });
     }
@@ -52,8 +51,8 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
   // Get option definitions for a task package
   app.get<{ Params: { name: string } }>('/task-packages/:name/options', async (req, reply) => {
     try {
-      const packageDir = await resolvePackagePath(req.params.name, deps.workingDir);
-      const scanned = await scanPackage(packageDir);
+      const packageDir = await deps.scanner.resolvePackagePath(req.params.name, deps.workingDir);
+      const scanned = await deps.scanner.scanPackage(packageDir);
       if (!scanned) {
         return reply.code(404).send({ error: 'Task package not found' });
       }
@@ -96,7 +95,7 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
       const { taskName, label, options = {}, enabled = true } = req.body;
 
       // Check task package exists in registry
-      const pkg = getPackage(taskName);
+      const pkg = deps.scanner.getPackage(taskName);
       if (!pkg || pkg.type !== 'task') {
         return reply.code(400).send({ error: 'Task package not found' });
       }

@@ -2,12 +2,12 @@ import { dirname, basename, join } from 'node:path';
 
 import { watch, type FSWatcher } from 'chokidar';
 
-import { scanPackage, deregisterPackage, registerPackage } from './package-scanner.js';
+import { type PackageScanner } from './package-scanner.js';
 
 export interface PackageWatcherOptions {
   workingDir: string;
   localPackagesDir: string | null;
-  nativePackages: Set<string>;
+  scanner: PackageScanner;
   onPackageAdded?: (name: string) => void | Promise<void>;
   onPackageChanged?: (name: string) => void | Promise<void>;
   onPackageRemoved?: (name: string) => void | Promise<void>;
@@ -80,10 +80,10 @@ export class PackageWatcher {
    */
   private async handleAdd(filePath: string) {
     const packageDir = dirname(filePath);
-    const scanned = await scanPackage(packageDir);
+    const scanned = await this.options.scanner.scanPackage(packageDir);
 
     if (scanned) {
-      await registerPackage(packageDir, 'local', this.options.nativePackages);
+      await this.options.scanner.registerPackage(packageDir, 'local');
 
       if (this.options.onPackageAdded) {
         await this.options.onPackageAdded(scanned.name);
@@ -96,11 +96,11 @@ export class PackageWatcher {
    */
   private async handleChange(filePath: string) {
     const packageDir = dirname(filePath);
-    const scanned = await scanPackage(packageDir);
+    const scanned = await this.options.scanner.scanPackage(packageDir);
 
     if (scanned) {
       // Re-register to update metadata
-      await registerPackage(packageDir, 'local', this.options.nativePackages);
+      await this.options.scanner.registerPackage(packageDir, 'local');
 
       if (this.options.onPackageChanged) {
         await this.options.onPackageChanged(scanned.name);
@@ -124,7 +124,7 @@ export class PackageWatcher {
     ];
 
     for (const name of possibleNames) {
-      if (deregisterPackage(name)) {
+      if (this.options.scanner.deregisterPackage(name)) {
         if (this.options.onPackageRemoved) {
           await this.options.onPackageRemoved(name);
         }

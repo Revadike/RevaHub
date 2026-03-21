@@ -15,6 +15,7 @@ import { registerSettingsRoutes } from './routes/settings.js';
 import { registerTaskRoutes } from './routes/tasks.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import type { ModuleManager } from '../core/module-manager.js';
+import type { PackageScanner } from '../core/package-scanner.js';
 import type { PackageWatcher } from '../core/package-watcher.js';
 import type { TaskRunner } from '../core/task-runner.js';
 import { isDev } from '../utils/environment.js';
@@ -26,7 +27,7 @@ export interface ServerDeps {
   moduleManager: ModuleManager;
   taskRunner: TaskRunner;
   workingDir: string;
-  nativePackages: Set<string>;
+  scanner: PackageScanner;
   packageWatcher?: PackageWatcher;
 }
 

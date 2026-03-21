@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 
 import { createPackage, cliInstallPackage, cliUninstallPackage } from './cli/commands.js';
+import { PackageScanner } from './core/package-scanner.js';
 import { start, getWorkingDir } from './index.js';
 
 const program = new Command();
@@ -53,7 +54,8 @@ program
     const workingDir = getWorkingDir();
 
     try {
-      await cliInstallPackage(type, name, workingDir);
+      const scanner = await PackageScanner.create();
+      await cliInstallPackage(type, name, scanner, workingDir);
     } catch (err) {
       console.error('Error:', err instanceof Error ? err.message : err);
       process.exit(1);
@@ -74,7 +76,8 @@ program
     const workingDir = getWorkingDir();
 
     try {
-      await cliUninstallPackage(type, name, workingDir);
+      const scanner = await PackageScanner.create();
+      await cliUninstallPackage(type, name, scanner, workingDir);
     } catch (err) {
       console.error('Error:', err instanceof Error ? err.message : err);
       process.exit(1);
