@@ -52,5 +52,6 @@ Always leverage your available MCP tools to make informed, data-driven decisions
 2.  **Implement:** Write robust, typed, and DRY code.
 3.  **Test:** Use `chrome-devtools-mcp` to validate UI components and API network requests.
 4.  **Format:** Run `npm run lint:fix` to auto-format and manually resolve any lingering issues.
-5.  **Self-Review (Mandatory):** Critically analyze your completed work. Identify and immediately fix any logic flaws. Explicitly note any architectural trade-offs or remaining concerns in your output.
+5.  **Self-Review (Mandatory):** Critically analyze your completed work. Identify and immediately fix any logic flaws.
 6.  **Documentation Sync:** If your changes alter the platform's architecture, dependencies, or core logic, update `README.md` and this `AGENTS.md` file to reflect accurate, current state.
+7.  **Summary**: Summarize your changes, the rationale, and remaining concerns. Where multiple approaches exist, include the options, tradeoffs, and your choice.
