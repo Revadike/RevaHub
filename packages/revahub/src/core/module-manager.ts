@@ -9,11 +9,11 @@ import { CoreEventBus } from './event-bus.js';
 import type { PackageScanner } from './package-scanner.js';
 import { getDatabase, getPGlite } from '../db/index.js';
 import { moduleInstances } from '../db/schema.js';
+import { isDev } from '../utils/environment.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const isDevMode = __dirname.includes('/src') || __dirname.includes('\\src');
-const workerExt = isDevMode ? 'ts' : 'js';
+const workerExt = isDev ? 'ts' : 'js';
 const WORKER_PATH = join(__dirname, '..', 'worker', `module-worker.${workerExt}`);
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -123,8 +123,8 @@ export class ModuleManager {
     };
 
     // Use tsx loader for TypeScript in dev mode
-    if (isDevMode) {
-      workerOptions.execArgv = ['--import', 'tsx'];
+    if (isDev) {
+      workerOptions.execArgv = ['--import', 'tsx/esm'];
     }
 
     const worker = new Worker(WORKER_PATH, workerOptions);
@@ -422,8 +422,11 @@ export class ModuleManager {
 
   private async maybeAutoRestart(instanceId: string) {
     const db = getDatabase();
-    const [row] = await db.select().from(moduleInstances)
+    const [row] = await db
+      .select()
+      .from(moduleInstances)
       .where(eq(moduleInstances.id, instanceId));
+
     if (row?.autoRestart && row.enabled) {
       console.info(`Auto-restarting instance "${instanceId}"`);
       try {
