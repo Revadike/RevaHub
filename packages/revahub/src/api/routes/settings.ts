@@ -19,8 +19,11 @@ export function registerSettingsRoutes(app: FastifyInstance) {
   // Get a single setting by key
   app.get<{ Params: { key: string } }>('/settings/:key', async (req, reply) => {
     const db = getDatabase();
-    const [setting] = await db.select().from(settings)
+    const [setting] = await db
+      .select()
+      .from(settings)
       .where(eq(settings.key, req.params.key));
+
     if (!setting) {
       return reply.code(404).send({ error: 'Setting not found' });
     }

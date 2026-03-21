@@ -72,6 +72,8 @@ class Database implements IDatabaseInstance {
   /**
    * Simple schema prefix injection for table references.
    * This is a basic implementation - complex queries may need manual handling.
+   *
+   * @param text - Raw SQL query text
    */
   private prefixSchema(text: string): string {
     // Replace FROM/INTO/UPDATE table references with prefixed versions

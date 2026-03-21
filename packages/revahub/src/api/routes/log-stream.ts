@@ -36,7 +36,9 @@ export function registerLogStreamRoutes(app: FastifyInstance) {
             conditions.push(eq(logs.taskRunId, taskRunId));
           }
 
-          const newLogs = await db.select().from(logs)
+          const newLogs = await db
+            .select()
+            .from(logs)
             .where(and(...conditions))
             .orderBy(desc(logs.timestamp))
             .limit(100);

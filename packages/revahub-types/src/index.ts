@@ -3,8 +3,6 @@
  * This package contains zero runtime code — only TypeScript interfaces.
  */
 
-// ── Option Definitions ──
-
 export type OptionType = 'string' | 'number' | 'boolean' | 'secret' | 'select' | 'instance' | 'trigger';
 
 export interface ConstraintOperators {
@@ -33,8 +31,6 @@ export interface InstanceOptionDef extends BaseOptionDef {
 
 export type OptionDef = BaseOptionDef | InstanceOptionDef;
 
-// ── Trigger Config ──
-
 export interface CronTriggerConfig {
   type: 'cron';
   cron: string;
@@ -47,8 +43,6 @@ export interface EventTriggerConfig {
 }
 
 export type TriggerConfig = CronTriggerConfig | EventTriggerConfig;
-
-// ── Revahub Package Metadata ──
 
 export interface RevahubModuleMeta {
   type: 'module';
@@ -68,8 +62,6 @@ export interface RevahubTaskMeta {
 
 export type RevahubMeta = RevahubModuleMeta | RevahubTaskMeta;
 
-// ── Event Payload ──
-
 export interface EventPayload {
   module: string;
   instance: string;
@@ -78,12 +70,8 @@ export interface EventPayload {
   timestamp: number;
 }
 
-// ── Instance Proxy ──
-
 /** RPC proxy — all methods return promises */
 export type InstanceProxy = Record<string, (...args: unknown[]) => Promise<unknown>>;
-
-// ── Logger Instance ──
 
 export interface LoggerInstance {
   info(message: string, data?: unknown): Promise<void>;
@@ -92,20 +80,14 @@ export interface LoggerInstance {
   debug(message: string, data?: unknown): Promise<void>;
 }
 
-// ── Database Instance ──
-
 export interface DatabaseInstance {
   query(text: string, params?: unknown[]): Promise<unknown[]>;
   queryOne(text: string, params?: unknown[]): Promise<unknown | null>;
 }
 
-// ── PGlite Proxy (for internal use by native database module) ──
-
 export interface PGliteProxy {
   query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
-
-// ── Module Context ──
 
 export interface ModuleContext {
   emit: (eventName: string, data: unknown) => void;
@@ -121,8 +103,6 @@ export interface ModuleInstances {
   [optionKey: string]: InstanceProxy | InstanceProxy[] | LoggerInstance | DatabaseInstance | PGliteProxy;
 }
 
-// ── Task Context ──
-
 export interface TaskContext {
   options: Record<string, unknown>;
   event?: EventPayload;
@@ -135,15 +115,9 @@ export interface TaskContext {
   };
 }
 
-// ── Module Factory ──
-
 export type ModuleFactory = (ctx: ModuleContext) => unknown | Promise<unknown>;
 
-// ── Task Function ──
-
 export type TaskFunction = (ctx: TaskContext) => unknown | Promise<unknown>;
-
-// ── Worker Thread Messages ──
 
 export interface WorkerEventMessage {
   type: 'event';
@@ -204,19 +178,11 @@ export type WorkerOutboundMessage =
   | WorkerRpcMessage
   | WorkerPGliteQueryMessage;
 
-// ── Instance Status ──
-
 export type InstanceStatus = 'running' | 'stopped' | 'crashed' | 'missing';
-
-// ── Task Run Status ──
 
 export type TaskRunStatus = 'running' | 'success' | 'failed' | 'timed_out';
 
-// ── Trigger Type ──
-
 export type TriggerType = 'event' | 'cron' | 'manual' | 'webhook';
-
-// ── Task Config Options (stored in JSONB) ──
 
 export interface TaskConfigOptions {
   trigger?: TriggerConfig;
@@ -228,11 +194,7 @@ export interface TaskConfigOptions {
   [key: string]: unknown;
 }
 
-// ── Package Source ──
-
 export type PackageSource = 'npm' | 'local' | 'git' | 'native';
-
-// ── Package Registry Entry ──
 
 export interface PackageRegistryEntry {
   name: string;
@@ -248,8 +210,6 @@ export interface PackageRegistryEntry {
   trigger?: { default?: TriggerConfig };
   timeout?: { default?: number };
 }
-
-// ── API Response Types ──
 
 export interface ModuleInstanceRow {
   id: string;

@@ -72,15 +72,20 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
   // List configs for a specific task package
   app.get<{ Params: { name: string } }>('/task-packages/:name/tasks', async (req) => {
     const db = getDatabase();
-    return db.select().from(tasks)
+    return db
+      .select()
+      .from(tasks)
       .where(eq(tasks.taskName, req.params.name));
   });
 
   // Get a single configured task
   app.get<{ Params: { id: string } }>('/tasks/:id', async (req, reply) => {
     const db = getDatabase();
-    const [task] = await db.select().from(tasks)
+    const [task] = await db
+      .select()
+      .from(tasks)
       .where(eq(tasks.id, req.params.id));
+
     if (!task) {
       return reply.code(404).send({ error: 'Task not found' });
     }
@@ -116,14 +121,20 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
     '/tasks/:id',
     async (req, reply) => {
       const db = getDatabase();
-      const [existing] = await db.select().from(tasks)
+      const [existing] = await db
+        .select()
+        .from(tasks)
         .where(eq(tasks.id, req.params.id));
+
       if (!existing) {
         return reply.code(404).send({ error: 'Task not found' });
       }
 
-      await db.update(tasks).set(req.body)
+      await db
+        .update(tasks)
+        .set(req.body)
         .where(eq(tasks.id, req.params.id));
+
       await deps.taskRunner.refreshCronJobs();
       return { success: true };
     }
@@ -132,8 +143,11 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
   // Delete a configured task
   app.delete<{ Params: { id: string } }>('/tasks/:id', async (req, reply) => {
     const db = getDatabase();
-    const [existing] = await db.select().from(tasks)
+    const [existing] = await db
+      .select()
+      .from(tasks)
       .where(eq(tasks.id, req.params.id));
+
     if (!existing) {
       return reply.code(404).send({ error: 'Task not found' });
     }
@@ -159,13 +173,17 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
     const limit = Math.min(parseInt(req.query.limit ?? '50', 10), 200);
 
     if (req.query.taskId) {
-      return db.select().from(taskRuns)
+      return db
+        .select()
+        .from(taskRuns)
         .where(eq(taskRuns.taskId, req.query.taskId))
         .orderBy(desc(taskRuns.startedAt))
         .limit(limit);
     }
 
-    return db.select().from(taskRuns)
+    return db
+      .select()
+      .from(taskRuns)
       .orderBy(desc(taskRuns.startedAt))
       .limit(limit);
   });
@@ -173,8 +191,11 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
   // Get a single task run
   app.get<{ Params: { id: string } }>('/task-runs/:id', async (req, reply) => {
     const db = getDatabase();
-    const [run] = await db.select().from(taskRuns)
+    const [run] = await db
+      .select()
+      .from(taskRuns)
       .where(eq(taskRuns.id, req.params.id));
+
     if (!run) {
       return reply.code(404).send({ error: 'Task run not found' });
     }

@@ -18,20 +18,26 @@ export function registerLogRoutes(app: FastifyInstance) {
       const limit = Math.min(parseInt(req.query.limit ?? '100', 10), 500);
 
       if (req.query.taskRunId) {
-        return db.select().from(logs)
+        return db
+          .select()
+          .from(logs)
           .where(eq(logs.taskRunId, req.query.taskRunId))
           .orderBy(desc(logs.timestamp))
           .limit(limit);
       }
 
       if (req.query.moduleInstanceId) {
-        return db.select().from(logs)
+        return db
+          .select()
+          .from(logs)
           .where(eq(logs.moduleInstanceId, req.query.moduleInstanceId))
           .orderBy(desc(logs.timestamp))
           .limit(limit);
       }
 
-      return db.select().from(logs)
+      return db
+        .select()
+        .from(logs)
         .orderBy(desc(logs.timestamp))
         .limit(limit);
     }

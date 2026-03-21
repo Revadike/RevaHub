@@ -63,7 +63,9 @@ export class TaskRunner {
     this.cronJobs.clear();
 
     const db = getDatabase();
-    const allTasks = await db.select().from(tasks)
+    const allTasks = await db
+      .select()
+      .from(tasks)
       .where(eq(tasks.enabled, true));
 
     for (const task of allTasks) {
@@ -116,7 +118,9 @@ export class TaskRunner {
    */
   private async handleEvent(payload: EventPayload) {
     const db = getDatabase();
-    const allTasks = await db.select().from(tasks)
+    const allTasks = await db
+      .select()
+      .from(tasks)
       .where(eq(tasks.enabled, true));
 
     for (const task of allTasks) {
@@ -148,7 +152,9 @@ export class TaskRunner {
     retryCount = 0
   ): Promise<{ runId: string; result?: unknown; error?: string }> {
     const db = getDatabase();
-    const [task] = await db.select().from(tasks)
+    const [task] = await db
+      .select()
+      .from(tasks)
       .where(
         and(eq(tasks.id, taskId), eq(tasks.enabled, true))
       );
@@ -230,7 +236,9 @@ export class TaskRunner {
         const result = await taskFn(ctx);
 
         // Store the early return value
-        await db.update(taskRuns).set({ result: result as object })
+        await db
+          .update(taskRuns)
+          .set({ result: result as object })
           .where(eq(taskRuns.id, runId));
 
         // Wait for all background work
@@ -273,11 +281,13 @@ export class TaskRunner {
       const status = isTimeout ? 'timed_out' : 'failed';
       const errorMessage = err instanceof Error ? err.message : String(err);
 
-      await db.update(taskRuns).set({
-        status,
-        error: errorMessage,
-        finishedAt: new Date()
-      })
+      await db
+        .update(taskRuns)
+        .set({
+          status,
+          error: errorMessage,
+          finishedAt: new Date()
+        })
         .where(eq(taskRuns.id, runId));
 
       // Auto-retry on failure/timeout
@@ -295,7 +305,9 @@ export class TaskRunner {
    */
   async getWebhookTasks(): Promise<Array<{ id: string; taskName: string }>> {
     const db = getDatabase();
-    const allTasks = await db.select().from(tasks)
+    const allTasks = await db
+      .select()
+      .from(tasks)
       .where(eq(tasks.enabled, true));
 
     return allTasks

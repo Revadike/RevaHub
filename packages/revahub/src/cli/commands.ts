@@ -137,6 +137,8 @@ export async function createPackage(
 
 /**
  * ${shortName.charAt(0).toUpperCase() + shortName.slice(1)} module for RevaHub.
+ *
+ * @param ctx - Module context provided by the RevaHub core
  */
 class ${toPascalCase(shortName)}Module {
   constructor(private ctx: ModuleContext) {
@@ -162,6 +164,8 @@ export default (ctx: ModuleContext) => {
 
 /**
  * ${shortName.charAt(0).toUpperCase() + shortName.slice(1)} task for RevaHub.
+ *
+ * @param ctx - Task context provided by the RevaHub core
  */
 export default async (ctx: TaskContext) => {
   await ctx.instances.logger.info('Task started');

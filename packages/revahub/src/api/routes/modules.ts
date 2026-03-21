@@ -72,15 +72,20 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
   // List instances for a specific module
   app.get<{ Params: { name: string } }>('/modules/:name/instances', async (req) => {
     const db = getDatabase();
-    return db.select().from(moduleInstances)
+    return db
+      .select()
+      .from(moduleInstances)
       .where(eq(moduleInstances.moduleName, req.params.name));
   });
 
   // Get a single instance
   app.get<{ Params: { id: string } }>('/instances/:id', async (req, reply) => {
     const db = getDatabase();
-    const [instance] = await db.select().from(moduleInstances)
+    const [instance] = await db
+      .select()
+      .from(moduleInstances)
       .where(eq(moduleInstances.id, req.params.id));
+
     if (!instance) {
       return reply.code(404).send({ error: 'Instance not found' });
     }
@@ -121,14 +126,20 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
     '/instances/:id',
     async (req, reply) => {
       const db = getDatabase();
-      const [existing] = await db.select().from(moduleInstances)
+      const [existing] = await db
+        .select()
+        .from(moduleInstances)
         .where(eq(moduleInstances.id, req.params.id));
+
       if (!existing) {
         return reply.code(404).send({ error: 'Instance not found' });
       }
 
-      await db.update(moduleInstances).set(req.body)
+      await db
+        .update(moduleInstances)
+        .set(req.body)
         .where(eq(moduleInstances.id, req.params.id));
+
       return { success: true };
     }
   );
@@ -136,8 +147,11 @@ export function registerModuleRoutes(app: FastifyInstance, deps: ServerDeps) {
   // Delete an instance
   app.delete<{ Params: { id: string } }>('/instances/:id', async (req, reply) => {
     const db = getDatabase();
-    const [existing] = await db.select().from(moduleInstances)
+    const [existing] = await db
+      .select()
+      .from(moduleInstances)
       .where(eq(moduleInstances.id, req.params.id));
+
     if (!existing) {
       return reply.code(404).send({ error: 'Instance not found' });
     }

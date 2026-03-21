@@ -43,7 +43,9 @@ Always leverage your available MCP tools to make informed, data-driven decisions
 * **Quality & Best Practices:** Do not cut corners. Adhere strictly to modern standards. Continually question if the current implementation is the optimal way to solve the problem; refactor if necessary.
 * **Strict Typing:** Use proper TypeScript types universally. The use of `any` is strictly prohibited.
 * **DRY Principle:** Vigorously reuse existing exported functions and utilities. Adapt existing code rather than duplicating logic.
-* **Documentation:** Write standard `TSDoc` blocks for all exported and reusable functions. Keep internal comments sparse and strictly functional. Only comment to clarify non-obvious logic. **Never** use stylized or formatting comments (e.g., `// -------`).
+* **Documentation:** Use standard `TSDoc` for all exported and reusable functions.
+* **Comments:** Keep comments minimal and only to clarify non-obvious logic. Avoid block and decorative comments (e.g., `// -------`).
+* **Function chains:** Max 2 chained calls per line (e.g. `foo.bar().bar();`), otherwise put every call on its own new line, followed by a whiteline. No mixing styles.
 
 ### Task Lifecycle
 1.  **Research:** Query `context7` for API syntax and `firecrawl` for architectural patterns.

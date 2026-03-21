@@ -272,6 +272,10 @@ export class PackageScanner {
 
   /**
    * Creates a package registry entry from scanned package data.
+   *
+   * @param scanned - Parsed package metadata and revahub config
+   * @param path - Resolved package directory path
+   * @param source - Package source category
    */
   private createRegistryEntry(
     scanned: ScannedPackage,
@@ -303,6 +307,8 @@ export class PackageScanner {
 
   /**
    * Reads package.json to find git-installed dependencies.
+   *
+   * @param workingDir - Working directory containing package.json
    */
   private async getGitPackages(workingDir: string): Promise<Set<string>> {
     const gitPackages = new Set<string>();

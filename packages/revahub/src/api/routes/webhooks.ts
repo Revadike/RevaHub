@@ -19,7 +19,9 @@ interface TaskOptions {
 export function registerWebhookRoutes(app: FastifyInstance, deps: ServerDeps) {
   app.post<{ Params: { taskId: string } }>('/webhooks/:taskId', async (req, reply) => {
     const db = getDatabase();
-    const [task] = await db.select().from(tasks)
+    const [task] = await db
+      .select()
+      .from(tasks)
       .where(eq(tasks.id, req.params.taskId));
 
     if (!task) {

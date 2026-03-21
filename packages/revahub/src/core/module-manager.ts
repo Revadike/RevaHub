@@ -45,7 +45,9 @@ export class ModuleManager {
    */
   async startAll() {
     const db = getDatabase();
-    const rows = await db.select().from(moduleInstances)
+    const rows = await db
+      .select()
+      .from(moduleInstances)
       .where(eq(moduleInstances.enabled, true));
 
     for (const row of rows) {
@@ -70,8 +72,11 @@ export class ModuleManager {
    */
   async startInstance(instanceId: string) {
     const db = getDatabase();
-    const [row] = await db.select().from(moduleInstances)
+    const [row] = await db
+      .select()
+      .from(moduleInstances)
       .where(eq(moduleInstances.id, instanceId));
+
     if (!row) {
       throw new Error(`Instance "${instanceId}" not found`);
     }
@@ -79,8 +84,11 @@ export class ModuleManager {
     // Check if module exists in registry
     const pkg = this.scanner.getPackage(row.moduleName);
     if (!pkg) {
-      await db.update(moduleInstances).set({ status: 'missing' })
+      await db
+        .update(moduleInstances)
+        .set({ status: 'missing' })
         .where(eq(moduleInstances.id, instanceId));
+
       throw new Error(`Module "${row.moduleName}" not found in registry`);
     }
 
@@ -147,14 +155,18 @@ export class ModuleManager {
     return new Promise<void>((resolve, reject) => {
       const onReady = () => {
         managed.status = 'running';
-        void db.update(moduleInstances).set({ status: 'running' })
+        void db
+          .update(moduleInstances)
+          .set({ status: 'running' })
           .where(eq(moduleInstances.id, instanceId))
           .then(() => resolve());
       };
 
       const onError = (error: string) => {
         managed.status = 'crashed';
-        void db.update(moduleInstances).set({ status: 'crashed' })
+        void db
+          .update(moduleInstances)
+          .set({ status: 'crashed' })
           .where(eq(moduleInstances.id, instanceId))
           .then(() => reject(new Error(error)));
       };
@@ -204,7 +216,9 @@ export class ModuleManager {
     managed.status = 'stopped';
 
     const db = getDatabase();
-    await db.update(moduleInstances).set({ status: 'stopped' })
+    await db
+      .update(moduleInstances)
+      .set({ status: 'stopped' })
       .where(eq(moduleInstances.id, instanceId));
   }
 
@@ -222,7 +236,9 @@ export class ModuleManager {
       throw new Error(`Instance "${instanceId}" is not running`);
     }
 
-    const correlationId = `${Date.now()}-${Math.random().toString(36)
+    const correlationId = `${Date.now()}-${Math
+      .random()
+      .toString(36)
       .slice(2, 9)}`;
 
     return new Promise((resolve, reject) => {
@@ -412,7 +428,9 @@ export class ModuleManager {
     if (managed.status === 'running') {
       managed.status = 'crashed';
       const db = getDatabase();
-      void db.update(moduleInstances).set({ status: 'crashed' })
+      void db
+        .update(moduleInstances)
+        .set({ status: 'crashed' })
         .where(eq(moduleInstances.id, instanceId));
 
       // Auto-restart if configured

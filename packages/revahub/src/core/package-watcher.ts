@@ -77,6 +77,8 @@ export class PackageWatcher {
 
   /**
    * Handles a new package.json being added.
+   *
+   * @param filePath - Full path to the added package.json file
    */
   private async handleAdd(filePath: string) {
     const packageDir = dirname(filePath);
@@ -93,6 +95,8 @@ export class PackageWatcher {
 
   /**
    * Handles a package.json being changed.
+   *
+   * @param filePath - Full path to the changed package.json file
    */
   private async handleChange(filePath: string) {
     const packageDir = dirname(filePath);
@@ -110,6 +114,8 @@ export class PackageWatcher {
 
   /**
    * Handles a package.json being deleted.
+   *
+   * @param filePath - Full path to the deleted package.json file
    */
   private async handleUnlink(filePath: string) {
     const packageDir = dirname(filePath);

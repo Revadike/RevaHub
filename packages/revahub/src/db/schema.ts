@@ -1,7 +1,5 @@
 import { boolean, index, jsonb, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
-// ── Module Instances ──
-
 export const moduleInstances = pgTable('module_instances', {
   id: text('id').primaryKey(),
   moduleName: text('module_name').notNull(),
@@ -18,8 +16,6 @@ export const moduleInstances = pgTable('module_instances', {
     .defaultNow()
 });
 
-// ── Tasks (formerly task_configs) ──
-
 export const tasks = pgTable('tasks', {
   id: text('id').primaryKey(),
   taskName: text('task_name').notNull(),
@@ -31,8 +27,6 @@ export const tasks = pgTable('tasks', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull()
     .defaultNow()
 });
-
-// ── Task Runs ──
 
 export const taskRuns = pgTable('task_runs', {
   id: text('id').primaryKey(),
@@ -51,8 +45,6 @@ export const taskRuns = pgTable('task_runs', {
   finishedAt: timestamp('finished_at', { withTimezone: true })
 });
 
-// ── Logs ──
-
 export const logs = pgTable('logs', {
   id: text('id').primaryKey(),
   level: text('level').notNull(),
@@ -67,8 +59,6 @@ export const logs = pgTable('logs', {
   index('logs_module_instance_id_idx').on(table.moduleInstanceId),
   index('logs_timestamp_desc_idx').on(table.timestamp)
 ]);
-
-// ── Settings ──
 
 export const settings = pgTable('settings', {
   key: text('key').primaryKey(),

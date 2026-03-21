@@ -92,7 +92,9 @@ async function ensureNativeModuleInstances(scanner: PackageScanner) {
   const nativeModules = scanner.getNativeModules();
 
   // Delete old __native_*__ entries (legacy format)
-  const oldEntries = await db.select().from(moduleInstances)
+  const oldEntries = await db
+    .select()
+    .from(moduleInstances)
     .where(like(moduleInstances.id, '__native_%'));
 
   for (const entry of oldEntries) {
@@ -165,6 +167,8 @@ async function ensureNativeTaskConfigs(scanner: PackageScanner) {
  * Updates module instance and task statuses based on package availability.
  * Marks instances as 'missing' if their package is not found,
  * and recovers them to 'stopped' if packages are found again.
+ *
+ * @param scanner - Package scanner used to resolve current registry availability
  */
 async function flagMissingPackages(scanner: PackageScanner) {
   const db = getDatabase();

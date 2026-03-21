@@ -29,7 +29,9 @@ class Logger {
     data?: unknown,
     meta?: { taskRunId?: string; moduleInstanceId?: string }
   ) {
-    const id = `log_${Date.now()}_${Math.random().toString(36)
+    const id = `log_${Date.now()}_${Math
+      .random()
+      .toString(36)
       .slice(2, 7)}`;
 
     this.ctx.emit('log', { level, message, data });

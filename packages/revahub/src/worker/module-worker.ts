@@ -36,8 +36,11 @@ function createInstanceProxy(targetInstanceId: string): Record<string, (...args:
   return new Proxy({} as Record<string, (...args: unknown[]) => Promise<unknown>>, {
     get(_, method: string) {
       return (...args: unknown[]) => {
-        const correlationId = `${Date.now()}-${Math.random().toString(36)
+        const correlationId = `${Date.now()}-${Math
+          .random()
+          .toString(36)
           .slice(2, 9)}`;
+
         return new Promise((resolve, reject) => {
           const handler = (msg: { type: string; correlationId: string; result?: unknown; error?: string }) => {
             if (msg.type === 'result' && msg.correlationId === correlationId) {
@@ -70,8 +73,11 @@ function createInstanceProxy(targetInstanceId: string): Record<string, (...args:
 function createPGliteProxy() {
   return {
     async query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }> {
-      const correlationId = `${Date.now()}-${Math.random().toString(36)
+      const correlationId = `${Date.now()}-${Math
+        .random()
+        .toString(36)
         .slice(2, 9)}`;
+
       return new Promise((resolve, reject) => {
         const handler = (msg: { type: string; correlationId: string; result?: unknown; error?: string }) => {
           if (msg.type === 'pglite-result' && msg.correlationId === correlationId) {

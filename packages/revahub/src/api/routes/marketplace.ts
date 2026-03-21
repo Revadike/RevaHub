@@ -7,10 +7,15 @@ import type { FastifyInstance } from 'fastify';
 
 import type { ServerDeps } from '../server.js';
 
-/** Strict validation pattern for npm package names in the revahub namespace. */
+// Strict validation pattern for npm package names in the revahub namespace.
 const VALID_PACKAGE_NAME = /^revahub-(module|task)-[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/;
 
-/** Runs an npm command with array arguments to prevent shell injection. */
+/**
+ * Runs an npm command with array arguments to prevent shell injection.
+ *
+ * @param args - npm CLI arguments
+ * @param cwd - Working directory for the npm process
+ */
 function npmRun(args: string[], cwd: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn('npm', args, { cwd, shell: false, stdio: 'pipe' });
