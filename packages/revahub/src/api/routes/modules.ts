@@ -1,10 +1,12 @@
-import { eq } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
+
+import { eq } from 'drizzle-orm';
+import type { FastifyInstance } from 'fastify';
+
+import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import { getDatabase } from '../../db/index.js';
 import { moduleInstances } from '../../db/schema.js';
-import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import type { ServerDeps } from '../server.js';
-import type { FastifyInstance } from 'fastify';
 
 /**
  * Registers all module and module instance API routes.

@@ -1,5 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
+
 import * as schema from './schema.js';
 
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;

@@ -1,12 +1,14 @@
-import { Worker } from 'node:worker_threads';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
+
 import { eq } from 'drizzle-orm';
-import { getDatabase, getPGlite } from '../db/index.js';
-import { moduleInstances } from '../db/schema.js';
+import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from 'revahub-types';
+
 import { CoreEventBus } from './event-bus.js';
 import { getPackage } from './package-scanner.js';
-import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from 'revahub-types';
+import { getDatabase, getPGlite } from '../db/index.js';
+import { moduleInstances } from '../db/schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

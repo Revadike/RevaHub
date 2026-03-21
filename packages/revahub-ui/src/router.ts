@@ -1,10 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
+
 import DashboardView from './views/DashboardView.vue';
 import InstancesView from './views/InstancesView.vue';
-import TasksView from './views/TasksView.vue';
-import TaskRunsView from './views/TaskRunsView.vue';
 import MarketplaceView from './views/MarketplaceView.vue';
 import SettingsView from './views/SettingsView.vue';
+import TaskRunsView from './views/TaskRunsView.vue';
+import TasksView from './views/TasksView.vue';
 
 export const router = createRouter({
   history: createWebHistory(),

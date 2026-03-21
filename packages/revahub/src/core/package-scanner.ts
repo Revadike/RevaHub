@@ -1,6 +1,7 @@
 import { readFile, access, readdir, lstat, realpath } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
 import { createRequire } from 'node:module';
+import { join, dirname } from 'node:path';
+
 import type { RevahubMeta, OptionDef, TriggerConfig, PackageSource } from 'revahub-types';
 
 export interface ScannedPackage {

@@ -1,10 +1,12 @@
-import { eq, desc } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
+
+import { eq, desc } from 'drizzle-orm';
+import type { FastifyInstance } from 'fastify';
+
+import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import { getDatabase } from '../../db/index.js';
 import { tasks, taskRuns } from '../../db/schema.js';
-import { getPackageRegistry, getPackage, resolvePackagePath, scanPackage } from '../../core/package-scanner.js';
 import type { ServerDeps } from '../server.js';
-import type { FastifyInstance } from 'fastify';
 
 /**
  * Registers all task and task config API routes.

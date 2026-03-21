@@ -1,21 +1,23 @@
-import { join } from 'node:path';
-import { homedir } from 'node:os';
 import { mkdir, writeFile, access } from 'node:fs/promises';
-import { initDatabase, getDatabase, closeDatabase } from './db/index.js';
-import { runMigrations } from './db/migrate.js';
-import { moduleInstances, tasks, settings } from './db/schema.js';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+import { eq } from 'drizzle-orm';
+
+import { createServer } from './api/server.js';
 import { CoreEventBus } from './core/event-bus.js';
 import { ModuleManager } from './core/module-manager.js';
-import { TaskRunner } from './core/task-runner.js';
-import { PackageWatcher } from './core/package-watcher.js';
 import {
   scanAllPackages,
   getPackageRegistry,
   registerPackage,
   resolvePackagePath
 } from './core/package-scanner.js';
-import { createServer } from './api/server.js';
-import { eq } from 'drizzle-orm';
+import { PackageWatcher } from './core/package-watcher.js';
+import { TaskRunner } from './core/task-runner.js';
+import { initDatabase, getDatabase, closeDatabase } from './db/index.js';
+import { runMigrations } from './db/migrate.js';
+import { moduleInstances, tasks, settings } from './db/schema.js';
 import { getNativePackages, getNativeModules } from './utils/native-packages.js';
 
 /**

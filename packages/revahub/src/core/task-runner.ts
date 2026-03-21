@@ -1,13 +1,9 @@
-import cron from 'node-cron';
-import { eq, and } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { getDatabase } from '../db/index.js';
-import { tasks, taskRuns } from '../db/schema.js';
-import { CoreEventBus } from './event-bus.js';
-import { ModuleManager } from './module-manager.js';
-import { getPackage } from './package-scanner.js';
+
+import { eq, and } from 'drizzle-orm';
+import cron from 'node-cron';
 import type {
   EventPayload,
   InstanceProxy,
@@ -16,6 +12,12 @@ import type {
   TaskFunction,
   TriggerType
 } from 'revahub-types';
+
+import { CoreEventBus } from './event-bus.js';
+import { ModuleManager } from './module-manager.js';
+import { getPackage } from './package-scanner.js';
+import { getDatabase } from '../db/index.js';
+import { tasks, taskRuns } from '../db/schema.js';
 
 /**
  * Generates a prefixed unique ID.

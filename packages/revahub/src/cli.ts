@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { start, getWorkingDir } from './index.js';
+
 import { createPackage, cliInstallPackage, cliUninstallPackage } from './cli/commands.js';
+import { start, getWorkingDir } from './index.js';
 
 const program = new Command();
 

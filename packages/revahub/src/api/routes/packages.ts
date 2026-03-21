@@ -1,9 +1,11 @@
-import type { FastifyInstance } from 'fastify';
-import type { ServerDeps } from '../server.js';
-import { getPackageRegistry, scanAllPackages, registerPackage, deregisterPackage } from '../../core/package-scanner.js';
-import { installPackage, uninstallPackage } from '../../cli/commands.js';
-import { getNativePackages } from '../../utils/native-packages.js';
 import { join } from 'node:path';
+
+import type { FastifyInstance } from 'fastify';
+
+import { installPackage, uninstallPackage } from '../../cli/commands.js';
+import { getPackageRegistry, scanAllPackages, registerPackage, deregisterPackage } from '../../core/package-scanner.js';
+import { getNativePackages } from '../../utils/native-packages.js';
+import type { ServerDeps } from '../server.js';
 
 /**
  * Registers package management routes.

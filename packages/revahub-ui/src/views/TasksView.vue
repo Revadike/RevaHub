@@ -1,8 +1,9 @@
 <script setup lang="ts">
+  import type { TaskRow, TaskRunRow } from 'revahub-types';
   import { ref, onMounted, watch } from 'vue';
+
   import { apiClient } from '../api';
   import OptionFields from '../components/OptionFields.vue';
-  import type { TaskRow, TaskRunRow } from 'revahub-types';
 
   interface OptionDef {
     key: string;

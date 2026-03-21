@@ -1,5 +1,6 @@
-import { parentPort, workerData } from 'node:worker_threads';
 import { pathToFileURL } from 'node:url';
+import { parentPort, workerData } from 'node:worker_threads';
+
 import type {
   ModuleContext,
   ModuleFactory,

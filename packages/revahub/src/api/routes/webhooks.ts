@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+
 import { getDatabase } from '../../db/index.js';
 import { tasks } from '../../db/schema.js';
 import type { ServerDeps } from '../server.js';

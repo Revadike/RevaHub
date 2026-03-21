@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+
 import type { EventPayload } from 'revahub-types';
 
 /**

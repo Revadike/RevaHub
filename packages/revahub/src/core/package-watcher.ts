@@ -1,5 +1,7 @@
-import { watch, type FSWatcher } from 'chokidar';
 import { dirname, basename, join } from 'node:path';
+
+import { watch, type FSWatcher } from 'chokidar';
+
 import { scanPackage, deregisterPackage, registerPackage } from './package-scanner.js';
 
 export interface PackageWatcherOptions {

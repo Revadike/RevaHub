@@ -1,6 +1,7 @@
+import { spawn } from 'node:child_process';
 import { mkdir, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { spawn } from 'node:child_process';
+
 import { scanPackage, registerPackage, deregisterPackage } from '../core/package-scanner.js';
 import { getNativePackages } from '../utils/native-packages.js';
 

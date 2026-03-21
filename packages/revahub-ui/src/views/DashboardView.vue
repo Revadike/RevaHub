@@ -1,7 +1,8 @@
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
-  import { apiClient } from '../api';
   import type { TaskRunRow } from 'revahub-types';
+  import { ref, onMounted } from 'vue';
+
+  import { apiClient } from '../api';
 
   interface Instance {
     id: string;

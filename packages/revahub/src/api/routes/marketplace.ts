@@ -1,10 +1,12 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join, resolve as resolvePath, basename } from 'node:path';
 import { mkdir, symlink, rm, readdir } from 'node:fs/promises';
+import { join, resolve as resolvePath, basename } from 'node:path';
+
+import type { FastifyInstance } from 'fastify';
+
 import { getPackage, registerPackage, deregisterPackage, scanPackage } from '../../core/package-scanner.js';
 import type { ServerDeps } from '../server.js';
-import type { FastifyInstance } from 'fastify';
 
 /** Strict validation pattern for npm package names in the revahub namespace. */
 const VALID_PACKAGE_NAME = /^revahub-(module|task)-[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/;

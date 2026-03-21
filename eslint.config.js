@@ -1,15 +1,16 @@
 import js from '@eslint/js';
 import stylistic from '@stylistic/eslint-plugin';
-import globals from 'globals';
+import { defineConfig } from 'eslint/config';
 import importPlugin from 'eslint-plugin-import';
 import tsdoc from 'eslint-plugin-tsdoc';
-import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
 import vuetify from 'eslint-plugin-vuetify';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
+export default defineConfig(
   {
-    ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**']
+    ignores: ['**/dist/**', '**/node_modules/**']
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -32,12 +33,14 @@ export default tseslint.config(
       'array-callback-return': 'error',
       'dot-notation': 'error',
       'func-style': 'off',
-      'import/no-named-as-default': 'off',
       'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
       'object-shorthand': ['error', 'always'],
       'prefer-arrow-callback': ['error', { allowNamedFunctions: false, allowUnboundThis: true }],
       'prefer-const': ['error', { destructuring: 'all' }],
       'prefer-template': 'error',
+
+      'import/no-named-as-default': 'off',
+      'import/order': ['error', { 'groups': ['builtin', 'external', 'internal', ['parent', 'sibling', 'index']], 'newlines-between': 'always', 'alphabetize': { order: 'asc', caseInsensitive: true } }],
 
       'tsdoc/syntax': 'error',
 
@@ -49,7 +52,6 @@ export default tseslint.config(
       '@stylistic/brace-style': ['error', '1tbs', { allowSingleLine: false }],
       '@stylistic/comma-dangle': ['error', 'never'],
       '@stylistic/comma-spacing': ['error', { before: false, after: true }],
-      '@stylistic/import/no-named-as-default': 'off',
       '@stylistic/indent': ['error', 2, { SwitchCase: 1 }],
       '@stylistic/key-spacing': ['error', { beforeColon: false, afterColon: true }],
       '@stylistic/keyword-spacing': 'error',
@@ -63,7 +65,7 @@ export default tseslint.config(
       '@stylistic/object-curly-newline': ['error', { consistent: true }],
       '@stylistic/object-curly-spacing': ['error', 'always'],
       '@stylistic/padded-blocks': ['error', 'never'],
-      '@stylistic/padding-line-between-statements': ['error', { blankLine: 'always', prev: 'if', next: '*' }, { blankLine: 'any', prev: '*', next: 'if' }, { blankLine: 'always', prev: 'function', next: 'function' }, { blankLine: 'always', prev: 'import', next: '*' }, { blankLine: 'never', prev: 'import', next: 'import' }],
+      '@stylistic/padding-line-between-statements': ['error', { blankLine: 'always', prev: 'if', next: '*' }, { blankLine: 'any', prev: '*', next: 'if' }, { blankLine: 'always', prev: 'function', next: 'function' }],
       '@stylistic/quote-props': ['error', 'consistent-as-needed'],
       '@stylistic/quotes': ['error', 'single'],
       '@stylistic/require-await': 'off',
@@ -74,30 +76,7 @@ export default tseslint.config(
       '@stylistic/space-in-parens': ['error', 'never'],
       '@stylistic/space-infix-ops': 'error',
       '@stylistic/spaced-comment': ['error', 'always'],
-      '@stylistic/template-curly-spacing': ['error', 'never'],
-
-      // Turned off for eslint@9.39.0
-      // @see https://github.com/eslint/eslint/issues/20272
-      '@typescript-eslint/unified-signatures': 'off'
-    }
-  },
-  {
-    files: ['**/*.vue'],
-    rules: {
-      'vue/attributes-order': ['error', { alphabetical: true }],
-      'vue/block-order': ['error', { order: ['script', 'template', 'style'] }],
-      'vue/brace-style': ['error', '1tbs', { allowSingleLine: false }],
-      'vue/first-attribute-linebreak': ['error', { singleline: 'beside', multiline: 'below' }],
-      'vue/html-indent': ['error', 2, { attribute: 1, baseIndent: 1, closeBracket: 0, alignAttributesVertically: true }],
-      'vue/max-attributes-per-line': ['error', { singleline: { max: 1 }, multiline: { max: 1 } }],
-      'vue/multi-word-component-names': 'off',
-      'vue/no-multiple-template-root': 'off',
-      'vue/object-curly-spacing': ['error', 'always'],
-      'vue/padding-line-between-blocks': 'error',
-      'vue/component-name-in-template-casing': ['error', 'kebab-case', { registeredComponentsOnly: false, ignores: [] }],
-      'vue/script-indent': ['error', 2, { baseIndent: 1, switchCase: 1, ignores: [] }],
-
-      '@stylistic/indent': 'off'
+      '@stylistic/template-curly-spacing': ['error', 'never']
     }
   },
   {
@@ -109,6 +88,22 @@ export default tseslint.config(
       parserOptions: {
         parser: tseslint.parser
       }
+    },
+    rules: {
+      'vue/attributes-order': ['error', { alphabetical: true }],
+      'vue/block-order': ['error', { order: ['script', 'template', 'style'] }],
+      'vue/brace-style': ['error', '1tbs', { allowSingleLine: false }],
+      'vue/component-name-in-template-casing': ['error', 'kebab-case', { registeredComponentsOnly: false, ignores: [] }],
+      'vue/first-attribute-linebreak': ['error', { singleline: 'beside', multiline: 'below' }],
+      'vue/html-indent': ['error', 2, { attribute: 1, baseIndent: 1, closeBracket: 0, alignAttributesVertically: true }],
+      'vue/max-attributes-per-line': ['error', { singleline: { max: 1 }, multiline: { max: 1 } }],
+      'vue/multi-word-component-names': 'off',
+      'vue/no-multiple-template-root': 'off',
+      'vue/object-curly-spacing': ['error', 'always'],
+      'vue/padding-line-between-blocks': 'error',
+      'vue/script-indent': ['error', 2, { baseIndent: 1, switchCase: 1, ignores: [] }],
+
+      '@stylistic/indent': 'off'
     }
   }
 );

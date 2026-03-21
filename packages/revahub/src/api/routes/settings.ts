@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
+import type { FastifyInstance } from 'fastify';
+
 import { getDatabase } from '../../db/index.js';
 import { settings } from '../../db/schema.js';
-import type { FastifyInstance } from 'fastify';
 
 /**
  * Registers settings API routes.

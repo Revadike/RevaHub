@@ -1,20 +1,22 @@
-import Fastify from 'fastify';
-import fastifyStatic from '@fastify/static';
-import fastifyWebsocket from '@fastify/websocket';
+import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+
+import fastifyStatic from '@fastify/static';
+import fastifyWebsocket from '@fastify/websocket';
+import Fastify from 'fastify';
+
+import { registerLogStreamRoutes } from './routes/log-stream.js';
+import { registerLogRoutes } from './routes/logs.js';
+import { registerMarketplaceRoutes } from './routes/marketplace.js';
 import { registerModuleRoutes } from './routes/modules.js';
+import { registerPackageRoutes } from './routes/packages.js';
+import { registerSettingsRoutes } from './routes/settings.js';
 import { registerTaskRoutes } from './routes/tasks.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
-import { registerLogRoutes } from './routes/logs.js';
-import { registerSettingsRoutes } from './routes/settings.js';
-import { registerMarketplaceRoutes } from './routes/marketplace.js';
-import { registerLogStreamRoutes } from './routes/log-stream.js';
-import { registerPackageRoutes } from './routes/packages.js';
 import type { ModuleManager } from '../core/module-manager.js';
-import type { TaskRunner } from '../core/task-runner.js';
 import type { PackageWatcher } from '../core/package-watcher.js';
+import type { TaskRunner } from '../core/task-runner.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
