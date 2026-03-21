@@ -6,6 +6,9 @@
   "files": [],
   "references": [
     {
+      "path": "packages/revahub-types"
+    },
+    {
       "path": "packages/revahub"
     },
     {
