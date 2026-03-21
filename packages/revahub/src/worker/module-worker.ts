@@ -105,8 +105,8 @@ const ctx: ModuleContext = {
     destroyCallbacks.push(fn);
   },
   instances: {
-    logger: createInstanceProxy('__native_logger__') as unknown as ModuleInstances['logger'],
-    database: createInstanceProxy('__native_database__') as unknown as ModuleInstances['database'],
+    logger: createInstanceProxy('inst_logger') as unknown as ModuleInstances['logger'],
+    database: createInstanceProxy('inst_database') as unknown as ModuleInstances['database'],
     pglite: createPGliteProxy()
   }
 };

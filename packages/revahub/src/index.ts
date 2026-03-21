@@ -23,11 +23,11 @@ import { getNativePackages, getNativeModules } from './utils/native-packages.js'
 /**
  * Resolves the working directory for RevaHub data and packages.
  *
- * @param envOverride - Optional override from environment variable
  * @returns Path to working directory
  */
-export function getWorkingDir(envOverride?: string): string {
-  return envOverride ?? join(homedir(), '.revahub');
+export function getWorkingDir(): string {
+  // TODO: Make user-configurable via UI
+  return join(homedir(), '.revahub');
 }
 
 /**
@@ -61,8 +61,11 @@ async function ensureWorkingDir(dir: string) {
  */
 async function getSetting<T>(key: string): Promise<T | undefined> {
   const db = getDatabase();
-  const [row] = await db.select().from(settings)
+  const [row] = await db
+    .select()
+    .from(settings)
     .where(eq(settings.key, key));
+
   return row?.value as T | undefined;
 }
 
@@ -71,9 +74,15 @@ async function getSetting<T>(key: string): Promise<T | undefined> {
  */
 async function ensureDefaultSettings() {
   const db = getDatabase();
-  await db.insert(settings).values({ key: 'port', value: 3000 })
+
+  await db
+    .insert(settings)
+    .values({ key: 'port', value: 3000 })
     .onConflictDoNothing();
-  await db.insert(settings).values({ key: 'localPackagesDir', value: null })
+
+  await db
+    .insert(settings)
+    .values({ key: 'localPackagesDir', value: null })
     .onConflictDoNothing();
 }
 
@@ -90,10 +99,12 @@ async function ensureNativeModuleInstances(nativeModules: string[]) {
     const pkg = registry.get(moduleName);
     if (!pkg || pkg.type !== 'module') continue;
 
-    const shortName = moduleName.replace('revahub-module-', '');
-    const defaultId = `__native_${shortName}__`;
+    const shortName = moduleName.replace('revahub-module-', '').replaceAll(/-/g, '_');
+    const defaultId = `inst_${shortName}`;
 
-    const [existing] = await db.select().from(moduleInstances)
+    const [existing] = await db
+      .select()
+      .from(moduleInstances)
       .where(eq(moduleInstances.id, defaultId));
 
     if (!existing) {
@@ -119,7 +130,8 @@ async function flagMissingPackages() {
   const allInstances = await db.select().from(moduleInstances);
   for (const instance of allInstances) {
     if (!registry.has(instance.moduleName)) {
-      await db.update(moduleInstances)
+      await db
+        .update(moduleInstances)
         .set({ status: 'missing' })
         .where(eq(moduleInstances.id, instance.id));
     }
@@ -128,7 +140,7 @@ async function flagMissingPackages() {
   const allTasks = await db.select().from(tasks);
   for (const task of allTasks) {
     if (!registry.has(task.taskName)) {
-      console.warn(`Task package "${task.taskName}" not found for task "${task.id}"`);
+      console.warn(`Configuration "${task.id}" exists for missing task "${task.taskName}"`);
     }
   }
 }
@@ -157,6 +169,7 @@ export async function start() {
     console.error('Migration warning:', err instanceof Error ? err.message : err);
   }
 
+  // TODO: Seed this data instead
   await ensureDefaultSettings();
 
   // Check if we're in dev mode by checking if we're running from src/ or dist/
@@ -258,6 +271,3 @@ export async function start() {
   await server.listen({ port, host: '0.0.0.0' });
   console.info(`Server running on http://localhost:${port}`);
 }
-
-export * from 'revahub-types';
-export * from './db/schema.js';

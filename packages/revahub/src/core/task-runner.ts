@@ -180,8 +180,8 @@ export class TaskRunner {
       const backgroundFns: Array<() => Promise<void>> = [];
 
       const instances: Record<string, InstanceProxy | InstanceProxy[]> = {
-        logger: this.moduleManager.createProxy('__native_logger__'),
-        database: this.moduleManager.createProxy('__native_database__')
+        logger: this.moduleManager.createProxy('inst_logger'),
+        database: this.moduleManager.createProxy('inst_database')
       };
 
       // Wire up connected instances from options
