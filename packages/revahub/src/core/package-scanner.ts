@@ -8,10 +8,13 @@ import type { RevahubMeta, OptionDef, TriggerConfig, PackageSource } from 'revah
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+type ExportsValue = string | { [condition: string]: ExportsValue } | null;
+
 export interface ScannedPackage {
   name: string;
   version: string;
   main: string;
+  devMain?: string;
   revahub: RevahubMeta;
 }
 
@@ -24,6 +27,7 @@ export interface PackageRegistryEntry {
   source: PackageSource;
   path: string;
   main: string;
+  devMain?: string;
   native: boolean;
   options?: OptionDef[];
   trigger?: { default?: TriggerConfig };
@@ -45,6 +49,36 @@ export class PackageScanner {
 
   private constructor(nativePackages: Set<string>) {
     this.nativePackages = nativePackages;
+  }
+
+  /**
+   * Resolves the development entry point from a package's exports field.
+   * Looks for the "development" condition in the main export (".").
+   *
+   * @param exports - The exports field from package.json
+   * @returns The development entry path or undefined
+   */
+  private resolveDevelopmentExport(exports: ExportsValue): string | undefined {
+    if (!exports || typeof exports === 'string') {
+      return undefined;
+    }
+
+    // Handle { ".": { "development": "./src/index.ts", "default": "./dist/index.js" } }
+    const mainExport = exports['.'];
+    if (mainExport && typeof mainExport === 'object') {
+      const devEntry = mainExport.development;
+      if (typeof devEntry === 'string') {
+        return devEntry.startsWith('./') ? devEntry.slice(2) : devEntry;
+      }
+    }
+
+    // Handle { "development": "./src/index.ts", "default": "./dist/index.js" } (shorthand for ".")
+    const devEntry = exports.development;
+    if (typeof devEntry === 'string') {
+      return devEntry.startsWith('./') ? devEntry.slice(2) : devEntry;
+    }
+
+    return undefined;
   }
 
   /**
@@ -163,10 +197,17 @@ export class PackageScanner {
         return null;
       }
 
+      const main = pkg.main ?? 'dist/index.js';
+
+      // Resolve dev entry point from exports field "development" condition
+      // Packages must define exports with development condition for hot reload support
+      const devMain = this.resolveDevelopmentExport(pkg.exports);
+
       return {
         name: pkg.name,
         version: pkg.version,
-        main: pkg.main ?? 'dist/index.js',
+        main,
+        devMain,
         revahub: pkg.revahub as RevahubMeta
       };
     } catch {
@@ -293,6 +334,7 @@ export class PackageScanner {
       source,
       path,
       main: scanned.main,
+      devMain: scanned.devMain,
       native: this.nativePackages.has(scanned.name),
       options: meta.options
     };

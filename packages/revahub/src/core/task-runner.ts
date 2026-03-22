@@ -18,6 +18,7 @@ import { ModuleManager } from './module-manager.js';
 import type { PackageScanner } from './package-scanner.js';
 import { getDatabase } from '../db/index.js';
 import { tasks, taskRuns } from '../db/schema.js';
+import { isDev } from '../utils/environment.js';
 
 /**
  * Generates a prefixed unique ID.
@@ -227,7 +228,9 @@ export class TaskRunner {
       };
 
       // Load and execute the task from registry
-      const taskEntryPath = join(pkg.path, pkg.main);
+      // In dev mode, use TypeScript source for native and local packages
+      const useDevMain = isDev && pkg.devMain && (pkg.source === 'native' || pkg.source === 'local');
+      const taskEntryPath = join(pkg.path, useDevMain ? pkg.devMain! : pkg.main);
       const mod = await import(pathToFileURL(taskEntryPath).href);
       const taskFn: TaskFunction = mod.default?.default ?? mod.default;
 

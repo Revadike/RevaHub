@@ -212,6 +212,7 @@ export interface PackageRegistryEntry {
   source: PackageSource;
   path: string;
   main: string;
+  devMain?: string;
   native: boolean;
   options?: OptionDef[];
   trigger?: { default?: TriggerConfig };

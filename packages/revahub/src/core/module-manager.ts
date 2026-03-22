@@ -88,7 +88,9 @@ export class ModuleManager {
     }
 
     // Resolve module entry point
-    const modulePath = join(pkg.path, pkg.main);
+    // In dev mode, use TypeScript source for native and local packages
+    const useDevMain = isDev && pkg.devMain && (pkg.source === 'native' || pkg.source === 'local');
+    const modulePath = join(pkg.path, useDevMain ? pkg.devMain! : pkg.main);
 
     const managed: ManagedInstance = {
       id: instanceId,

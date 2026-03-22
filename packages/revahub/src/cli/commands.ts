@@ -77,6 +77,12 @@ export async function createPackage(
     type: 'module',
     main: 'dist/index.js',
     types: 'dist/index.d.ts',
+    exports: {
+      '.': {
+        development: './src/index.ts',
+        default: './dist/index.js'
+      }
+    },
     keywords: ['revahub', `revahub-${type}`],
     scripts: {
       build: 'tsc',
@@ -98,8 +104,8 @@ export async function createPackage(
         timeout: { default: 30000 }
       },
     devDependencies: {
-      'revahub-types': '*',
-      'typescript': '^5.8.0'
+      'revahub-types': 'latest',
+      'typescript': 'latest'
     }
   };
 
