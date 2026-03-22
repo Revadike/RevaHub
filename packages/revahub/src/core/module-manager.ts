@@ -1,5 +1,4 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 
 import { eq } from 'drizzle-orm';
@@ -11,10 +10,6 @@ import { getDatabase, getPGlite } from '../db/index.js';
 import { moduleInstances } from '../db/schema.js';
 import { isDev } from '../utils/environment.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const workerExt = isDev ? 'ts' : 'js';
-const WORKER_PATH = join(__dirname, '..', 'worker', `module-worker.${workerExt}`);
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 interface ManagedInstance {
@@ -119,7 +114,9 @@ export class ModuleManager {
       }
     }
 
-    // In dev mode, we need tsx to transpile TypeScript files in workers
+    // https://electrovir.com/2025-08-09-typescript-worker/
+    const workerExt = isDev ? 'ts' : 'js';
+    const workerPath = import.meta.resolve(`../worker/module-worker.${workerExt}`);
     const workerOptions: ConstructorParameters<typeof Worker>[1] = {
       workerData: {
         modulePath,
@@ -127,15 +124,16 @@ export class ModuleManager {
         instanceId,
         moduleName: row.moduleName,
         connectedInstances
-      }
+      },
+      eval: isDev
     };
 
-    // Use tsx loader for TypeScript in dev mode
-    if (isDev) {
-      workerOptions.execArgv = ['--import', 'tsx/esm'];
-    }
-
-    const worker = new Worker(WORKER_PATH, workerOptions);
+    const worker = new Worker(
+      isDev
+        ? `import('tsx/esm/api').then(({ register }) => { register(); import('${workerPath}') })`
+        : workerPath,
+      workerOptions
+    );
 
     managed.worker = worker;
 
