@@ -1,18 +1,4 @@
-interface TaskContext {
-  options: Record<string, unknown>;
-  event?: unknown;
-  background: (fn: () => Promise<void>) => void;
-  instances: {
-    logger: {
-      info: (message: string, data?: unknown) => Promise<void>;
-      error: (message: string, data?: unknown) => Promise<void>;
-    };
-    database: {
-      query: (text: string, params?: unknown[]) => Promise<unknown[]>;
-    };
-    [key: string]: unknown;
-  };
-}
+import type { TaskContext } from 'revahub-types';
 
 /**
  * Deletes log entries older than the configured retention period.

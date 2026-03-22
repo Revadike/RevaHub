@@ -223,7 +223,7 @@ function toPascalCase(str: string): string {
     .join('');
 }
 
-/** Options for install/uninstall commands. */
+// Options for install/uninstall commands
 export interface PackageCommandOptions {
   version?: string;
   workingDir: string;

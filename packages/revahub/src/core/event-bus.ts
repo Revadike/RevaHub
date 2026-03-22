@@ -40,7 +40,9 @@ export class CoreEventBus {
     this.emitter.off('event', listener);
   }
 
-  /** Removes all event listeners. */
+  /**
+   * Removes all event listeners.
+   */
   removeAllListeners() {
     this.emitter.removeAllListeners('event');
   }

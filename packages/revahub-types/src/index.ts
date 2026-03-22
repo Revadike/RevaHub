@@ -70,7 +70,7 @@ export interface EventPayload {
   timestamp: number;
 }
 
-/** RPC proxy — all methods return promises */
+// RPC proxy — all methods return promises
 export type InstanceProxy = Record<string, (...args: unknown[]) => Promise<unknown>>;
 
 export interface LoggerInstance {
@@ -89,6 +89,12 @@ export interface PGliteProxy {
   query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
 }
 
+export interface ModuleInstances {
+  logger: LoggerInstance;
+  database: DatabaseInstance;
+  [optionKey: string]: InstanceProxy | InstanceProxy[] | LoggerInstance | DatabaseInstance;
+}
+
 export interface ModuleContext {
   emit: (eventName: string, data: unknown) => void;
   onDestroy: (fn: () => Promise<void> | void) => void;
@@ -96,23 +102,11 @@ export interface ModuleContext {
   instances: ModuleInstances;
 }
 
-export interface ModuleInstances {
-  logger: LoggerInstance;
-  database: DatabaseInstance;
-  pglite: PGliteProxy;
-  [optionKey: string]: InstanceProxy | InstanceProxy[] | LoggerInstance | DatabaseInstance | PGliteProxy;
-}
-
 export interface TaskContext {
   options: Record<string, unknown>;
   event?: EventPayload;
   background: (fn: () => Promise<void>) => void;
-  instances: {
-    logger: LoggerInstance;
-    database: DatabaseInstance;
-    pglite: PGliteProxy;
-    [optionKey: string]: InstanceProxy | InstanceProxy[] | LoggerInstance | DatabaseInstance | PGliteProxy;
-  };
+  instances: ModuleInstances;
 }
 
 export type ModuleFactory = (ctx: ModuleContext) => unknown | Promise<unknown>;
