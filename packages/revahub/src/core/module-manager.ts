@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 
 import { eq } from 'drizzle-orm';
-import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage } from 'revahub-types';
+import type { InstanceProxy, InstanceStatus, WorkerOutboundMessage, CallerContext } from 'revahub-types';
 
 import { CoreEventBus } from './event-bus.js';
 import type { PackageScanner } from './package-scanner.js';
@@ -226,9 +226,15 @@ export class ModuleManager {
    * @param instanceId - Target instance
    * @param method - Method name to invoke
    * @param args - Arguments to pass
+   * @param callerContext - Optional caller context for tracing
    * @returns The method's return value
    */
-  async callMethod(instanceId: string, method: string, args: unknown[]): Promise<unknown> {
+  async callMethod(
+    instanceId: string,
+    method: string,
+    args: unknown[],
+    callerContext?: CallerContext
+  ): Promise<unknown> {
     const managed = this.instances.get(instanceId);
     if (!managed?.worker || managed.status !== 'running') {
       throw new Error(`Instance "${instanceId}" is not running`);
@@ -241,7 +247,7 @@ export class ModuleManager {
 
     return new Promise((resolve, reject) => {
       managed.pendingCalls.set(correlationId, { resolve, reject });
-      managed.worker!.postMessage({ type: 'call', correlationId, method, args });
+      managed.worker!.postMessage({ type: 'call', correlationId, method, args, callerContext });
     });
   }
 
@@ -249,11 +255,15 @@ export class ModuleManager {
    * Creates an RPC proxy object for an instance, usable in task/module contexts.
    *
    * @param instanceId - Target instance to proxy
+   * @param callerContext - Optional caller context to inject into all calls
    */
-  createProxy(instanceId: string): InstanceProxy {
+  createProxy(
+    instanceId: string,
+    callerContext?: CallerContext
+  ): InstanceProxy {
     return new Proxy({} as InstanceProxy, {
       get: (_, method: string) => {
-        return (...args: unknown[]) => this.callMethod(instanceId, method, args);
+        return (...args: unknown[]) => this.callMethod(instanceId, method, args, callerContext);
       }
     });
   }
@@ -333,7 +343,8 @@ export class ModuleManager {
       // Forwarded RPC from worker to another instance
       default:
         if (msg.type === 'rpc' && msg.targetInstanceId && msg.method && msg.correlationId) {
-          void this.forwardRpc(instanceId, msg.targetInstanceId, msg.method, msg.args ?? [], msg.correlationId);
+          const callerContext = (msg as { callerContext?: CallerContext }).callerContext;
+          void this.forwardRpc(instanceId, msg.targetInstanceId, msg.method, msg.args ?? [], msg.correlationId, callerContext);
         }
 
         break;
@@ -384,21 +395,26 @@ export class ModuleManager {
    * @param method - Method name to invoke
    * @param args - Method arguments
    * @param correlationId - Correlation ID for response
+   * @param callerContext - Optional caller context for tracing
    */
   private async forwardRpc(
     sourceInstanceId: string,
     targetInstanceId: string,
     method: string,
     args: unknown[],
-    correlationId: string
+    correlationId: string,
+    callerContext?: CallerContext
   ) {
     const source = this.instances.get(sourceInstanceId);
     if (!source?.worker) {
       return;
     }
 
+    // If no caller context provided, the source module is the caller
+    const effectiveContext = callerContext ?? { moduleInstanceId: sourceInstanceId };
+
     try {
-      const result = await this.callMethod(targetInstanceId, method, args);
+      const result = await this.callMethod(targetInstanceId, method, args, effectiveContext);
       source.worker.postMessage({ type: 'result', correlationId, result });
     } catch (err) {
       source.worker.postMessage({

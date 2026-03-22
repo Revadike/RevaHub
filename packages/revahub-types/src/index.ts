@@ -92,17 +92,28 @@ export interface PGliteProxy {
 export interface ModuleInstances {
   logger: LoggerInstance;
   database: DatabaseInstance;
-  [optionKey: string]: InstanceProxy | InstanceProxy[] | LoggerInstance | DatabaseInstance;
+  pglite?: PGliteProxy;
+  [optionKey: string]: InstanceProxy | InstanceProxy[] | LoggerInstance | DatabaseInstance | PGliteProxy | undefined;
+}
+
+export interface CallerContext {
+  taskRunId?: string;
+  taskId?: string;
+  moduleInstanceId?: string;
 }
 
 export interface ModuleContext {
+  instanceId: string;
   emit: (eventName: string, data: unknown) => void;
   onDestroy: (fn: () => Promise<void> | void) => void;
   options: Record<string, unknown>;
   instances: ModuleInstances;
+  getCallerContext: () => CallerContext | undefined;
 }
 
 export interface TaskContext {
+  runId: string;
+  taskId: string;
   options: Record<string, unknown>;
   event?: EventPayload;
   background: (fn: () => Promise<void>) => void;
@@ -124,6 +135,7 @@ export interface WorkerCallMessage {
   correlationId: string;
   method: string;
   args: unknown[];
+  callerContext?: CallerContext;
 }
 
 export interface WorkerResultMessage {
@@ -149,6 +161,7 @@ export interface WorkerRpcMessage {
   targetInstanceId: string;
   method: string;
   args?: unknown[];
+  callerContext?: CallerContext;
 }
 
 export interface WorkerPGliteQueryMessage {

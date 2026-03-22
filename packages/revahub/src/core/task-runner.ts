@@ -102,7 +102,9 @@ export class TaskRunner {
     this.cronJobs.set(taskId, job);
   }
 
-  /** Subscribes to the event bus and triggers matching tasks. */
+  /**
+   * Subscribes to the event bus and triggers matching tasks.
+   */
   private subscribeToEvents() {
     this.eventListener = (payload: EventPayload) => {
       void this.handleEvent(payload);
@@ -186,9 +188,10 @@ export class TaskRunner {
       // Build task context
       const backgroundFns: Array<() => Promise<void>> = [];
 
+      const callerContext = { taskRunId: runId, taskId };
       const instances: Record<string, InstanceProxy | InstanceProxy[]> = {
-        logger: this.moduleManager.createProxy('inst_logger'),
-        database: this.moduleManager.createProxy('inst_database')
+        logger: this.moduleManager.createProxy('inst_logger', callerContext),
+        database: this.moduleManager.createProxy('inst_database', callerContext)
       };
 
       // Wire up connected instances from options
@@ -208,11 +211,13 @@ export class TaskRunner {
             throw new Error(`Required instance "${value}" (option "${key}") is not running (status: ${instanceStatus ?? 'unknown'})`);
           }
 
-          instances[key] = this.moduleManager.createProxy(value);
+          instances[key] = this.moduleManager.createProxy(value, callerContext);
         }
       }
 
       const ctx: TaskContext = {
+        runId,
+        taskId,
         options: taskOptions,
         event,
         background(fn: () => Promise<void>) {
@@ -315,7 +320,9 @@ export class TaskRunner {
       .map((t) => ({ id: t.id, taskName: t.taskName }));
   }
 
-  /** Stops all cron jobs and unsubscribes from events. */
+  /**
+   * Stops all cron jobs and unsubscribes from events.
+   */
   async shutdown() {
     for (const [, job] of this.cronJobs) {
       job.stop();

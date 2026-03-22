@@ -1,7 +1,9 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { pathToFileURL } from 'node:url';
 import { parentPort, workerData } from 'node:worker_threads';
 
 import type {
+  CallerContext,
   ModuleContext,
   ModuleFactory,
   ModuleInstances,
@@ -25,6 +27,7 @@ interface WorkerBootstrapData {
 
 const data = workerData as WorkerBootstrapData;
 const destroyCallbacks: Array<() => Promise<void> | void> = [];
+const callerContextStore = new AsyncLocalStorage<CallerContext>();
 
 /**
  * Creates an RPC proxy for calling methods on another module instance
@@ -59,7 +62,8 @@ function createInstanceProxy(targetInstanceId: string): Record<string, (...args:
             targetInstanceId,
             method,
             args,
-            correlationId
+            correlationId,
+            callerContext: callerContextStore.getStore()
           });
         });
       };
@@ -103,6 +107,7 @@ function createPGliteProxy() {
 }
 
 const ctx: ModuleContext = {
+  instanceId: data.instanceId,
   options: data.options,
   emit(eventName: string, eventData: unknown) {
     port.postMessage({ type: 'event', name: eventName, data: eventData });
@@ -114,7 +119,8 @@ const ctx: ModuleContext = {
     logger: createInstanceProxy('inst_logger') as unknown as ModuleInstances['logger'],
     database: createInstanceProxy('inst_database') as unknown as ModuleInstances['database'],
     pglite: createPGliteProxy()
-  }
+  },
+  getCallerContext: () => callerContextStore.getStore()
 };
 
 // Wire up any connected instance proxies
@@ -141,7 +147,11 @@ async function handleCall(msg: WorkerCallMessage) {
       throw new Error(`Method "${msg.method}" not found on instance`);
     }
 
-    const result = await (method as (...args: unknown[]) => unknown).call(instance, ...msg.args);
+    const callerContext = msg.callerContext ?? {};
+    const result = await callerContextStore.run(callerContext, async () => {
+      return (method as (...args: unknown[]) => unknown).call(instance, ...msg.args);
+    });
+
     port.postMessage({ type: 'result', correlationId: msg.correlationId, result });
   } catch (err) {
     port.postMessage({
@@ -152,7 +162,9 @@ async function handleCall(msg: WorkerCallMessage) {
   }
 }
 
-/** Runs all registered destroy callbacks in order. */
+/**
+ * Runs all registered destroy callbacks in order.
+ */
 async function handleShutdown() {
   for (const fn of destroyCallbacks) {
     try {
@@ -173,7 +185,9 @@ port.on('message', (msg: WorkerInboundMessage) => {
   }
 });
 
-// Bootstrap the module
+/**
+ * Bootstrap the module
+ */
 async function bootstrap() {
   try {
     const mod = await import(pathToFileURL(data.modulePath).href);

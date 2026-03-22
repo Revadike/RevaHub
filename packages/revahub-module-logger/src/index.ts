@@ -1,16 +1,8 @@
+import type { ModuleContext } from 'revahub-types';
+
 export type LoggerInstance = InstanceType<typeof Logger>;
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-
-interface ModuleContext {
-  emit: (eventName: string, data: unknown) => void;
-  onDestroy: (fn: () => Promise<void> | void) => void;
-  options: Record<string, unknown>;
-  instances: {
-    database: { query: (text: string, params?: unknown[]) => Promise<unknown[]> };
-    [key: string]: unknown;
-  };
-}
 
 class Logger {
   constructor(private ctx: ModuleContext) {}
@@ -21,13 +13,11 @@ class Logger {
    * @param level - Log severity level
    * @param message - Log message
    * @param data - Optional structured context data
-   * @param meta - Optional task run or instance ID for association
    */
   private async log(
     level: LogLevel,
     message: string,
-    data?: unknown,
-    meta?: { taskRunId?: string; moduleInstanceId?: string }
+    data?: unknown
   ) {
     const id = `log_${Date.now()}_${Math
       .random()
@@ -35,6 +25,8 @@ class Logger {
       .slice(2, 7)}`;
 
     this.ctx.emit('log', { level, message, data });
+
+    const { taskRunId = null, moduleInstanceId = null } = this.ctx.getCallerContext() || {};
 
     try {
       await this.ctx.instances.database.query(
@@ -45,8 +37,8 @@ class Logger {
           level,
           message,
           data ? JSON.stringify(data) : null,
-          meta?.taskRunId ?? null,
-          meta?.moduleInstanceId ?? null
+          taskRunId,
+          moduleInstanceId
         ]
       );
     } catch {
@@ -60,10 +52,9 @@ class Logger {
    *
    * @param message - Log message
    * @param data - Optional structured data
-   * @param meta - Optional association metadata
    */
-  async debug(message: string, data?: unknown, meta?: { taskRunId?: string; moduleInstanceId?: string }) {
-    await this.log('debug', message, data, meta);
+  async debug(message: string, data?: unknown) {
+    await this.log('debug', message, data);
   }
 
   /**
@@ -71,10 +62,9 @@ class Logger {
    *
    * @param message - Log message
    * @param data - Optional structured data
-   * @param meta - Optional association metadata
    */
-  async info(message: string, data?: unknown, meta?: { taskRunId?: string; moduleInstanceId?: string }) {
-    await this.log('info', message, data, meta);
+  async info(message: string, data?: unknown) {
+    await this.log('info', message, data);
   }
 
   /**
@@ -82,10 +72,9 @@ class Logger {
    *
    * @param message - Log message
    * @param data - Optional structured data
-   * @param meta - Optional association metadata
    */
-  async warn(message: string, data?: unknown, meta?: { taskRunId?: string; moduleInstanceId?: string }) {
-    await this.log('warn', message, data, meta);
+  async warn(message: string, data?: unknown) {
+    await this.log('warn', message, data);
   }
 
   /**
@@ -93,10 +82,9 @@ class Logger {
    *
    * @param message - Log message
    * @param data - Optional structured data
-   * @param meta - Optional association metadata
    */
-  async error(message: string, data?: unknown, meta?: { taskRunId?: string; moduleInstanceId?: string }) {
-    await this.log('error', message, data, meta);
+  async error(message: string, data?: unknown) {
+    await this.log('error', message, data);
   }
 }
 

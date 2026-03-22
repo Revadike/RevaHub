@@ -20,7 +20,10 @@ export default async (ctx: TaskContext) => {
   ) as Array<{ id: string }>;
 
   const deletedCount = result.length;
-  await ctx.instances.logger.info(`Cleaned up ${deletedCount} log entries older than ${retentionDays} days`);
+  await ctx.instances.logger.info(
+    `Cleaned up ${deletedCount} log entries older than ${retentionDays} days`,
+    { deletedCount, retentionDays }
+  );
 
   return { deletedCount, retentionDays };
 };
