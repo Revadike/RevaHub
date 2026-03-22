@@ -18,10 +18,14 @@ const BASE_URL = '/api';
  * @returns Parsed JSON response
  */
 async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options
-  });
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string>)
+  };
+  if (options?.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));

@@ -13,6 +13,7 @@ import { TaskRunner } from './core/task-runner.js';
 import { initDatabase, getDatabase, closeDatabase } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
 import { moduleInstances, tasks, settings } from './db/schema.js';
+import { seedDefaults } from './db/seed.js';
 import { isDev } from './utils/environment.js';
 
 /**
@@ -62,23 +63,6 @@ async function getSetting<T>(key: string): Promise<T | undefined> {
     .where(eq(settings.key, key));
 
   return row?.value as T | undefined;
-}
-
-/**
- * Ensures default settings exist in the database.
- */
-async function ensureDefaultSettings() {
-  const db = getDatabase();
-
-  await db
-    .insert(settings)
-    .values({ key: 'port', value: 3000 })
-    .onConflictDoNothing();
-
-  await db
-    .insert(settings)
-    .values({ key: 'localPackagesDir', value: null })
-    .onConflictDoNothing();
 }
 
 /**
@@ -224,8 +208,7 @@ export async function start() {
     console.error('Migration warning:', err instanceof Error ? err.message : err);
   }
 
-  // TODO: Seed this data instead
-  await ensureDefaultSettings();
+  await seedDefaults();
 
   // Use port 3001 in dev mode (ignore database setting), port 3000 in production
   const port = isDev ? 3001 : (await getSetting<number>('port') ?? 3000);
