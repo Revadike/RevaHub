@@ -4,6 +4,7 @@
 
   import { apiClient } from '../api';
   import OptionFields from '../components/OptionFields.vue';
+  import { useSnackbar } from '../composables/useSnackbar';
 
   interface OptionDef {
     key: string;
@@ -30,6 +31,7 @@
     native: boolean;
   }
 
+  const snackbar = useSnackbar();
   const taskPackages = ref<TaskPackage[]>([]);
   const tasks = ref<TaskRow[]>([]);
   const instances = ref<Instance[]>([]);
@@ -137,8 +139,11 @@
   async function runTask(id: string) {
     try {
       await apiClient.runTask(id);
+      snackbar.success('Task started successfully');
       await loadData();
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      snackbar.error(`Failed to run task: ${message}`);
       console.error('Failed to run task:', err);
     }
   }

@@ -2,6 +2,8 @@
   import { ref } from 'vue';
   import { useRouter } from 'vue-router';
 
+  import AppSnackbar from './components/AppSnackbar.vue';
+
   const router = useRouter();
   const drawer = ref(true);
 
@@ -50,5 +52,7 @@
         <router-view />
       </v-container>
     </v-main>
+
+    <app-snackbar />
   </v-app>
 </template>
