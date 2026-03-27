@@ -8,6 +8,7 @@ import { CoreEventBus } from './event-bus.js';
 import type { PackageScanner } from './package-scanner.js';
 import { getDatabase, getPGlite } from '../db/index.js';
 import { moduleInstances } from '../db/schema.js';
+import { generateId } from '../utils/crypto.js';
 import { isDev } from '../utils/environment.js';
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -242,10 +243,7 @@ export class ModuleManager {
       throw new Error(`Instance "${instanceId}" is not running`);
     }
 
-    const correlationId = `${Date.now()}-${Math
-      .random()
-      .toString(36)
-      .slice(2, 9)}`;
+    const correlationId = generateId('rpc');
 
     return new Promise((resolve, reject) => {
       managed.pendingCalls.set(correlationId, { resolve, reject });

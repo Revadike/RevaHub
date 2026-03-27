@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -18,16 +17,8 @@ import { ModuleManager } from './module-manager.js';
 import type { PackageScanner } from './package-scanner.js';
 import { getDatabase } from '../db/index.js';
 import { tasks, taskRuns } from '../db/schema.js';
+import { generateId } from '../utils/crypto.js';
 import { isDev } from '../utils/environment.js';
-
-/**
- * Generates a prefixed unique ID.
- *
- * @param prefix - Short prefix string
- */
-function generateId(prefix: string): string {
-  return `${prefix}_${randomBytes(6).toString('hex')}`;
-}
 
 /**
  * Orchestrates task execution including cron scheduling, event-driven
@@ -316,6 +307,7 @@ export class TaskRunner {
 
       // No more retries configured — rethrow so callers can handle the failure
       if (err instanceof Error) throw err;
+
       throw new Error(errorMessage);
     }
   }
