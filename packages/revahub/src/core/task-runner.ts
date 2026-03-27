@@ -97,7 +97,9 @@ export class TaskRunner {
     }
 
     const job = cron.schedule(cronExpression, () => {
-      void this.invoke(taskId, 'cron');
+      this.invoke(taskId, 'cron').catch((err) => {
+        console.error(`Cron task "${taskId}" failed:`, err);
+      });
     });
 
     this.cronJobs.set(taskId, job);
@@ -108,7 +110,9 @@ export class TaskRunner {
    */
   private subscribeToEvents() {
     this.eventListener = (payload: EventPayload) => {
-      void this.handleEvent(payload);
+      this.handleEvent(payload).catch((err) => {
+        console.error('Event handling failed:', err);
+      });
     };
 
     this.eventBus.on(this.eventListener);
@@ -133,7 +137,9 @@ export class TaskRunner {
         options.trigger.instance === payload.instance &&
         options.trigger.event === payload.event
       ) {
-        void this.invoke(task.id, 'event', payload);
+        this.invoke(task.id, 'event', payload).catch((err) => {
+          console.error(`Task "${task.id}" failed on event trigger:`, err);
+        });
       }
     }
   }
@@ -278,9 +284,11 @@ export class TaskRunner {
       })
         .where(eq(taskRuns.id, runId));
 
-      // Auto-restart on success
+      // Auto-restart on success (run in background and log failures)
       if (options.autoRestart) {
-        void this.invoke(taskId, triggerType, event);
+        this.invoke(taskId, triggerType, event).catch((err) => {
+          console.error(`Auto-restart for task "${taskId}" failed:`, err);
+        });
       }
 
       return { runId, result: result as object };
@@ -300,11 +308,15 @@ export class TaskRunner {
 
       // Auto-retry on failure/timeout
       const maxRetries = options.maxRetries ?? 3;
-      if (options.autoRetry && retryCount < maxRetries) {
-        void this.invoke(taskId, triggerType, event, webhookBody, retryCount + 1);
+      const shouldRetry = Boolean(options.autoRetry) && retryCount < maxRetries;
+
+      if (shouldRetry) {
+        return this.invoke(taskId, triggerType, event, webhookBody, retryCount + 1);
       }
 
-      return { runId, error: errorMessage };
+      // No more retries configured — rethrow so callers can handle the failure
+      if (err instanceof Error) throw err;
+      throw new Error(errorMessage);
     }
   }
 

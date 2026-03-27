@@ -161,6 +161,12 @@ export function registerTaskRoutes(app: FastifyInstance, deps: ServerDeps) {
   app.post<{ Params: { id: string } }>('/tasks/:id/run', async (req, reply) => {
     try {
       const result = await deps.taskRunner.invoke(req.params.id, 'manual');
+
+      // If the TaskRunner returned an error payload, surface it as HTTP 500
+      if (result && 'error' in result && (result as { error?: unknown }).error) {
+        return reply.code(500).send(result);
+      }
+
       return result;
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Unknown error' });

@@ -70,9 +70,7 @@ export async function createServer(deps: ServerDeps) {
   registerLogStreamRoutes(app);
 
   // Serve pre-built Vue SPA (production mode only)
-  // In development, Vite serves the UI on port 3000 with HMR
   const uiDir = join(__dirname, '..', 'ui');
-
   if (!isDev && existsSync(uiDir)) {
     await app.register(fastifyStatic, {
       root: uiDir,
@@ -84,9 +82,10 @@ export async function createServer(deps: ServerDeps) {
     app.setNotFoundHandler((_req, reply) => {
       return reply.sendFile('index.html');
     });
-  } else {
-    app.log.info('UI directory not found - running in dev mode. Frontend should be on port 3000.');
+  } else if (!isDev) {
+    throw new Error('UI directory not found. Please build the UI before starting the server in production mode.');
   }
 
+  // In development, Vite serves the UI on port 3000 with HMR
   return app;
 }

@@ -41,6 +41,11 @@ export function registerWebhookRoutes(app: FastifyInstance, deps: ServerDeps) {
         req.body
       );
 
+      // If the TaskRunner returned an error payload, surface it as HTTP 500
+      if (result && 'error' in result && (result as { error?: unknown }).error) {
+        return reply.code(500).send(result);
+      }
+
       return result;
     } catch (err) {
       return reply.code(500).send({ error: err instanceof Error ? err.message : 'Unknown error' });
